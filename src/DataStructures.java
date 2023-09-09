@@ -25,7 +25,7 @@ class Node {
 }
 
 class LinkedList {
-    private Node head;
+    Node head;
     private int size;
 
     public LinkedList() {
@@ -181,7 +181,7 @@ class Stack {
 class StackLinkedList {
     private LinkedList stackList;
 
-    public Stack1() {
+    public StackLinkedList() {
         this.stackList = new LinkedList();
     }
 
