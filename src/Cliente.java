@@ -20,7 +20,6 @@ public class Cliente extends PApplet implements Runnable {
 
 
 
-
     }
 
 
@@ -32,9 +31,8 @@ public class Cliente extends PApplet implements Runnable {
     }
 
     public void draw() {
-        fill(150);
-        stroke(150);
-        ellipse(mouseX,mouseY,100,100);
+
+        ellipse(100,100,100,100);
 
 
     }
@@ -80,6 +78,7 @@ public class Cliente extends PApplet implements Runnable {
                 DataInputStream datos = new DataInputStream(serversocker.getInputStream());
 
                 String mensajes = datos.readUTF();
+                System.out.println(mensajes);
 
             }
 
