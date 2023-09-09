@@ -4,10 +4,14 @@ import java.io.DataOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import processing.core.PApplet;
+import java.util.Random;
 
 public class Cliente extends PApplet implements Runnable {
 
+
+
     Socket socket;
+    int color = 0;
 
     public Cliente() {
         Thread hilo = new Thread(this);
@@ -24,14 +28,14 @@ public class Cliente extends PApplet implements Runnable {
 
 
     public void setup() {
-        background(0);
+
 
 
 
     }
 
     public void draw() {
-
+        background(color);
         ellipse(100,100,100,100);
 
 
@@ -50,7 +54,10 @@ public class Cliente extends PApplet implements Runnable {
     }
 
     public void mouseClicked(){
-        send("hola");
+        Random rand = new Random();
+        int rand_int1 = rand.nextInt(200);
+        String numero = String.valueOf(rand_int1);
+        send(numero);
 
 
     }
@@ -79,6 +86,8 @@ public class Cliente extends PApplet implements Runnable {
 
                 String mensajes = datos.readUTF();
                 System.out.println(mensajes);
+                int color_numero = Integer.parseInt(mensajes);
+                color = color_numero;
 
             }
 

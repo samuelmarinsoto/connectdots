@@ -7,6 +7,8 @@ import java.util.Objects;
 
 public class Servidor{
 
+
+
     public static void main(String args[]){
 
         LinkedList<Integer> lista_puertos = new LinkedList<Integer>();
