@@ -1,17 +1,35 @@
+import org.json.simple.JSONArray;
+import processing.core.PApplet;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import processing.core.PApplet;
 import java.util.Random;
+import org.json.simple.JSONObject;
+
+
 
 public class Cliente extends PApplet implements Runnable {
 
 
 
     Socket socket;
-    int color = 0;
+    public static int color = 0;
+
+    public static JSONObject data  = new JSONObject();
+
+
+
+
+
+
+
+
+
+
+
+
 
     public Cliente() {
         Thread hilo = new Thread(this);
@@ -30,12 +48,11 @@ public class Cliente extends PApplet implements Runnable {
     public void setup() {
 
 
-
-
     }
 
     public void draw() {
-        background(color);
+
+        background((Integer) data.get("color"));
         ellipse(100,100,100,100);
 
 
@@ -55,9 +72,9 @@ public class Cliente extends PApplet implements Runnable {
 
     public void mouseClicked(){
         Random rand = new Random();
-        int rand_int1 = rand.nextInt(200);
-        String numero = String.valueOf(rand_int1);
-        send(numero);
+        String mensaje =data.toJSONString();
+
+        send(mensaje);
 
 
     }
@@ -86,8 +103,10 @@ public class Cliente extends PApplet implements Runnable {
 
                 String mensajes = datos.readUTF();
                 System.out.println(mensajes);
-                int color_numero = Integer.parseInt(mensajes);
-                color = color_numero;
+
+
+
+
 
             }
 
@@ -96,7 +115,18 @@ public class Cliente extends PApplet implements Runnable {
     }
 
     public static void main(String args[]) {
+
+        data.put("color",0);
+
+
+
+
+
+
+
         java.awt.EventQueue.invokeLater(new Runnable() {
+
+
             public void run() {
                 PApplet.main("Cliente");
             }
