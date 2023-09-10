@@ -9,7 +9,12 @@ import java.io.DataOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Random;
+import java.util.SimpleTimeZone;
 import java.util.concurrent.TimeUnit;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import java.lang.reflect.Type;
+import java.util.List;
 
 
 public class Cliente extends PApplet implements Runnable {
@@ -19,9 +24,10 @@ public class Cliente extends PApplet implements Runnable {
     Socket socket;
     public static int color = 0;
 
-    public static String samuel ="{\"color\":0}";
+    public static String samuel ="{}";
 
     public static  JSONObject data  = new JSONObject(samuel);
+    public static JSONArray datos = new JSONArray();
     public static int juego_iniciado = 0;
     ArrayList<Dot> dots;
     ArrayList<Line> lines;
@@ -75,11 +81,15 @@ public class Cliente extends PApplet implements Runnable {
         background(255);
         for (Square sq : squares) {
             sq.display();
+
         }
 
         // Display the lines
         for (Line line : lines) {
             line.display();
+            System.out.println();
+
+
         }
 
         // Display the
@@ -147,6 +157,9 @@ public class Cliente extends PApplet implements Runnable {
                     firstDot = null;
                 }
             }
+
+
+            send(lines.toString());
         }
     }
 
@@ -208,6 +221,7 @@ public class Cliente extends PApplet implements Runnable {
         void display() {
             stroke(lineColor);
             line(dot1.x, dot1.y, dot2.x, dot2.y);
+
         }
     }
 
@@ -359,7 +373,13 @@ public class Cliente extends PApplet implements Runnable {
 
                 String mensajes = datos.readUTF();
                 System.out.println(mensajes);
-                data =new JSONObject(mensajes);
+
+
+
+
+
+
+
 
 
 
