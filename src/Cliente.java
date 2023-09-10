@@ -1,13 +1,12 @@
-import org.json.simple.JSONArray;
+import org.json.*;
 import processing.core.PApplet;
+
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Random;
-import org.json.simple.JSONObject;
-
 
 
 public class Cliente extends PApplet implements Runnable {
@@ -17,7 +16,9 @@ public class Cliente extends PApplet implements Runnable {
     Socket socket;
     public static int color = 0;
 
-    public static JSONObject data  = new JSONObject();
+    public static String samuel ="{\"color\":0}";
+
+    public static  JSONObject data  = new JSONObject(samuel);
 
 
 
@@ -72,7 +73,8 @@ public class Cliente extends PApplet implements Runnable {
 
     public void mouseClicked(){
         Random rand = new Random();
-        String mensaje =data.toJSONString();
+
+        String mensaje =data.put("color",255).toString();
 
         send(mensaje);
 
@@ -103,6 +105,8 @@ public class Cliente extends PApplet implements Runnable {
 
                 String mensajes = datos.readUTF();
                 System.out.println(mensajes);
+                data =new JSONObject(mensajes);
+
 
 
 
@@ -116,7 +120,7 @@ public class Cliente extends PApplet implements Runnable {
 
     public static void main(String args[]) {
 
-        data.put("color",0);
+
 
 
 

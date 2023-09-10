@@ -18,5 +18,6 @@
       </library>
     </orderEntry>
     <orderEntry type="library" name="json-simple-1.1.1" level="project" />
+    <orderEntry type="library" name="Json.org" level="project" />
   </component>
 </module>
