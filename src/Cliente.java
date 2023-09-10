@@ -1,12 +1,12 @@
 import org.json.*;
 import processing.core.PApplet;
 
-
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Random;
+import java.util.concurrent.TimeUnit;
 
 
 public class Cliente extends PApplet implements Runnable {
@@ -19,27 +19,23 @@ public class Cliente extends PApplet implements Runnable {
     public static String samuel ="{\"color\":0}";
 
     public static  JSONObject data  = new JSONObject(samuel);
-
-
-
-
-
-
-
-
+    public static int juego_iniciado = 0;
 
 
 
 
 
     public Cliente() {
+
         Thread hilo = new Thread(this);
         hilo.start();
+
     }
+
+
 
     public void settings(){
         size(500,500);
-
 
 
 
@@ -49,7 +45,10 @@ public class Cliente extends PApplet implements Runnable {
     public void setup() {
 
 
+
     }
+
+
 
     public void draw() {
 
@@ -73,8 +72,8 @@ public class Cliente extends PApplet implements Runnable {
 
     public void mouseClicked(){
         Random rand = new Random();
-
-        String mensaje =data.put("color",255).toString();
+        int rand_int1 = rand.nextInt(300);
+        String mensaje =data.put("color",rand_int1).toString();
 
         send(mensaje);
 
@@ -119,23 +118,21 @@ public class Cliente extends PApplet implements Runnable {
     }
 
     public static void main(String args[]) {
+        Inicio  inicio =new Inicio();
 
-
-
-
-
-
-
-
-
+        while(inicio.numero ==0){
+            System.out.println("1");
+        }
         java.awt.EventQueue.invokeLater(new Runnable() {
 
 
             public void run() {
-                PApplet.main("Cliente");
-            }
-        });
 
+                PApplet.main("Cliente");
+
+            }
+
+        });
 
 
 
