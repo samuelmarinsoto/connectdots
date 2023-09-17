@@ -1,4 +1,4 @@
-import org.json.*;
+//import org.json.*;
 import processing.core.PApplet;
 
 import java.awt.*;
@@ -11,14 +11,80 @@ import java.net.Socket;
 import java.util.Random;
 import java.util.SimpleTimeZone;
 import java.util.concurrent.TimeUnit;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
+//import com.google.gson.Gson;
+//import com.google.gson.reflect.TypeToken;
 import java.lang.reflect.Type;
 import java.util.List;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
 
 
 public class Cliente extends PApplet implements Runnable {
 
+    static class Node<T> {
+        T value;
+        Node<T> next;
+
+        Node(T value) {
+            this.value = value;
+            this.next = null;
+        }
+    }
+
+    static class LinkedListCustom<T> implements Iterable<T> {
+        Node<T> head;
+        int size;
+
+        LinkedListCustom() {
+            head = null;
+            size = 0;
+        }
+
+        void add(T value) {
+            if (head == null) {
+                head = new Node<>(value);
+            } else {
+                Node<T> current = head;
+                while (current.next != null) {
+                    current = current.next;
+                }
+                current.next = new Node<>(value);
+            }
+            size++;
+        }
+
+        T get(int index) {
+            if (index >= size || index < 0) {
+                throw new IndexOutOfBoundsException("Index out of bounds");
+            }
+            Node<T> current = head;
+            for (int i = 0; i < index; i++) {
+                current = current.next;
+            }
+            return current.value;
+        }
+        @Override
+        public Iterator<T> iterator() {
+            return new Iterator<T>() {
+                private Node<T> current = head;
+
+                @Override
+                public boolean hasNext() {
+                    return current != null;
+                }
+
+                @Override
+                public T next() {
+                    if (current == null) {
+                        throw new NoSuchElementException();
+                    }
+                    T value = current.value;
+                    current = current.next;
+                    return value;
+                }
+            };
+        }
+    }
 
 
     Socket socket;
@@ -26,12 +92,12 @@ public class Cliente extends PApplet implements Runnable {
 
     public static String samuel ="{}";
 
-    public static  JSONObject data  = new JSONObject(samuel);
-    public static JSONArray datos = new JSONArray();
+    //public static  JSONObject data  = new JSONObject(samuel);
+//    public static JSONArray datos = new JSONArray();
     public static int juego_iniciado = 0;
-    ArrayList<Dot> dots;
-    ArrayList<Line> lines;
-    ArrayList<Square> squares = new ArrayList<Square>();
+    LinkedListCustom<Dot> dots;
+    LinkedListCustom<Line> lines;
+    LinkedListCustom<Square> squares = new LinkedListCustom<Square>();
     int dotSize = 5;
     int rows = 10; // Number of rows
     int cols =10; // Number of columns
@@ -64,8 +130,8 @@ public class Cliente extends PApplet implements Runnable {
 
     public void settings() {
         size(400, 400);
-        dots = new ArrayList<Dot>();
-        lines = new ArrayList<Line>();
+        dots = new LinkedListCustom<Dot>();
+        lines = new LinkedListCustom<Line>();
         generateDots();
     }
 
@@ -339,7 +405,7 @@ public class Cliente extends PApplet implements Runnable {
         }
     }
 
-    public void mouseClicked(){
+/* public void mouseClicked(){
         Random rand = new Random();
         int rand_int1 = rand.nextInt(300);
         String mensaje =data.put("color",rand_int1).toString();
@@ -348,7 +414,7 @@ public class Cliente extends PApplet implements Runnable {
 
 
     }
-
+*/
     public void run() {
 
 
