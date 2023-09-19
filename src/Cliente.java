@@ -17,6 +17,7 @@ import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import java.util.HashSet;
 
 
 public class Cliente extends PApplet implements Runnable {
@@ -63,6 +64,10 @@ public class Cliente extends PApplet implements Runnable {
             }
             return current.value;
         }
+        public boolean isEmpty() {
+            return size == 0;
+        }
+
         @Override
         public Iterator<T> iterator() {
             return new Iterator<T>() {
@@ -180,7 +185,6 @@ public class Cliente extends PApplet implements Runnable {
             }
         }
     }
-
     public void keyPressed() {
         if (key == 'A' || key == 'a') {
             selectedRow = max(0, selectedRow - 1);
@@ -201,16 +205,19 @@ public class Cliente extends PApplet implements Runnable {
                     lines.add(newLine);
 
                     // Si se completa un cuadro, incrementa el puntaje del jugador correspondiente
-                    if (isSquareCompleted(firstDot, currentDot)) {
-                        Square sq = new Square(firstDot, currentDot);
-                        squares.add(sq);
-                        if (currentPlayer == 1) {
-                            score++;
-                        }
-                        // No cambiamos el turno si alguien completa un cuadrado.
-                    } else {
-                        // Cambio de turno
+                    LinkedListCustom<Square> completedSquares = getCompletedSquares(newLine);
+                    if (completedSquares.size == 0) {
                         currentPlayer = (currentPlayer == 1) ? 2 : 1;
+                    }
+
+                    for (Square sq : completedSquares) {
+                        squares.add(sq);
+                        sq.setColor((currentPlayer == 1) ? player1Color : player2Color); // Set color
+                        if (currentPlayer == 1) {
+                            player1Score++;
+                        } else {
+                            player2Score++;
+                        }
                     }
 
 
@@ -224,10 +231,30 @@ public class Cliente extends PApplet implements Runnable {
                 }
             }
 
-
             send(lines.toString());
         }
+        HashSet<String> lineSet = new HashSet<>();
+        for (Line line : lines) {
+            lineSet.add(line.getUniqueRepresentation());
+        }
+
+        for (Square sq : squares) {
+            if (sq.isClosed(lineSet)) {
+                if (currentPlayer == 1) {
+                    sq.setColor(player1Color);
+                    player1Score++;  // Incrementar el puntaje del jugador 1
+                } else {
+                    sq.setColor(player2Color);
+                    player2Score++;  // Incrementar el puntaje del jugador 2
+                }
+                // No cambiamos el turno si alguien completa un cuadrado.
+            } else {
+                // Cambio de turno
+                currentPlayer = (currentPlayer == 1) ? 2 : 1;
+            }
+        }
     }
+
 
     public boolean lineExists(Dot d1, Dot d2) {
         for (Line line : lines) {
@@ -272,11 +299,16 @@ public class Cliente extends PApplet implements Runnable {
             }
             ellipse(x, y, radius * 2, radius * 2);
         }
+        String getIdentifier() {
+            return row + "," + col;
+        }
     }
 
     class Line {
         Dot dot1, dot2;
         int lineColor = 0;
+        Dot start;
+        Dot end;
 
         Line(Dot dot1, Dot dot2) {
             this.dot1 = dot1;
@@ -287,29 +319,163 @@ public class Cliente extends PApplet implements Runnable {
         void display() {
             stroke(lineColor);
             line(dot1.x, dot1.y, dot2.x, dot2.y);
-
+        }
+        String getUniqueRepresentation() {
+            return dot1.getIdentifier() + "-" + dot2.getIdentifier();
         }
     }
+    private boolean doesSquareExist(Dot topLeft, Dot bottomRight) {
+        Dot topRight = getDotAtRowCol(topLeft.row, bottomRight.col);
+        Dot bottomLeft = getDotAtRowCol(bottomRight.row, topLeft.col);
 
-    public boolean isSquareCompleted(Dot d1, Dot d2) {
-        Dot topRight, topLeft, bottomRight, bottomLeft;
-
-        if(d1.row == d2.row) { // Horizontal line
-            topLeft = d1.col < d2.col ? d1 : d2;
-            topRight = d1.col > d2.col ? d1 : d2;
-            bottomLeft = getDotAtRowCol(topLeft.row + 1, topLeft.col);
-            bottomRight = getDotAtRowCol(topRight.row + 1, topRight.col);
-        } else { // Vertical line
-            topLeft = d1.row < d2.row ? d1 : d2;
-            bottomLeft = d1.row > d2.row ? d1 : d2;
-            topRight = getDotAtRowCol(topLeft.row, topLeft.col + 1);
-            bottomRight = getDotAtRowCol(bottomLeft.row, bottomLeft.col + 1);
+        return lineExists(topLeft, topRight) && lineExists(topLeft, bottomLeft) && lineExists(bottomRight, bottomLeft) && lineExists(bottomRight, topRight);
+    }
+    private Square getSquareAbove(Dot d1, Dot d2) {
+        if (d1.row != d2.row) {
+            return null; // Not a horizontal line
         }
 
-        if(topLeft == null || topRight == null || bottomLeft == null || bottomRight == null) return false;
+        if (d1.row == 0) {
+            return null; // No square above the first row
+        }
 
-        return lineExists(topLeft, topRight) && lineExists(bottomLeft, bottomRight) && lineExists(topLeft, bottomLeft) && lineExists(topRight, bottomRight);
+        Dot topRight = d1.col > d2.col ? d1 : d2;
+        Dot topLeft = d1.col < d2.col ? d1 : d2;
+        Dot upperLeft = getDotAtRowCol(topLeft.row - 1, topLeft.col);
+        Dot upperRight = getDotAtRowCol(topRight.row - 1, topRight.col);
+
+        if (upperLeft != null && upperRight != null && doesSquareExist(upperLeft, topRight)) {
+            return new Square(upperLeft, topRight);
+        }
+        return null;
     }
+    private Square getSquareBelow(Dot d1, Dot d2) {
+        if (d1.row != d2.row) {
+            return null; // Not a horizontal line
+        }
+
+        if (d1.row == rows - 1) {
+            return null; // No square below the last row
+        }
+
+        Dot bottomRight = d1.col > d2.col ? d1 : d2;
+        Dot bottomLeft = d1.col < d2.col ? d1 : d2;
+        Dot lowerLeft = getDotAtRowCol(bottomLeft.row + 1, bottomLeft.col);
+        Dot lowerRight = getDotAtRowCol(bottomRight.row + 1, bottomRight.col);
+
+        if (lowerLeft != null && lowerRight != null && doesSquareExist(bottomLeft, lowerRight)) {
+            return new Square(bottomLeft, lowerRight);
+        }
+        return null;
+    }
+    private Square getSquareLeft(Dot d1, Dot d2) {
+        if (d1.col != d2.col) {
+            return null; // Not a vertical line
+        }
+
+        if (d1.col == 0) {
+            return null; // No square to the left of the first column
+        }
+
+        Dot top = d1.row < d2.row ? d1 : d2;
+        Dot bottom = d1.row > d2.row ? d1 : d2;
+        Dot leftTop = getDotAtRowCol(top.row, top.col - 1);
+        Dot leftBottom = getDotAtRowCol(bottom.row, bottom.col - 1);
+
+        if (leftTop != null && leftBottom != null && doesSquareExist(leftTop, bottom)) {
+            return new Square(leftTop, bottom);
+        }
+        return null;
+    }
+    private Square getSquareRight(Dot d1, Dot d2) {
+        if (d1.col != d2.col) {
+            return null; // Not a vertical line
+        }
+
+        if (d1.col == cols - 1) {
+            return null; // No square to the right of the last column
+        }
+
+        Dot top = d1.row < d2.row ? d1 : d2;
+        Dot bottom = d1.row > d2.row ? d1 : d2;
+        Dot rightTop = getDotAtRowCol(top.row, top.col + 1);
+        Dot rightBottom = getDotAtRowCol(bottom.row, bottom.col + 1);
+
+        if (rightTop != null && rightBottom != null && doesSquareExist(rightTop, bottom)) {
+            return new Square(top, rightBottom);
+        }
+        return null;
+    }
+
+
+
+    public LinkedListCustom<Square> getCompletedSquares(Line line) {
+        LinkedListCustom<Square> completedSquares = new LinkedListCustom<>();
+
+        if (line.dot1.row == line.dot2.row) { // línea horizontal
+            Square above = getSquareAbove(line.dot1, line.dot2);
+            Square below = getSquareBelow(line.dot1, line.dot2);
+
+            if (above != null) {
+                completedSquares.add(above);
+            }
+            if (below != null) {
+                completedSquares.add(below);
+            }
+
+        } else { // línea vertical
+            Square left = getSquareLeft(line.dot1, line.dot2);
+            Square right = getSquareRight(line.dot1, line.dot2);
+
+            if (left != null) {
+                completedSquares.add(left);
+            }
+            if (right != null) {
+                completedSquares.add(right);
+            }
+        }
+
+        return completedSquares;
+    }
+
+
+
+    private boolean checkSquareAbove(Dot left, Dot right) {
+        Dot topLeft = getDotAtRowCol(left.row - 1, left.col);
+        Dot topRight = getDotAtRowCol(right.row - 1, right.col);
+
+        if(topLeft == null || topRight == null) return false;
+
+        return lineExists(topLeft, left) && lineExists(topRight, right) && lineExists(topLeft, topRight);
+    }
+
+    private boolean checkSquareBelow(Dot left, Dot right) {
+        Dot bottomLeft = getDotAtRowCol(left.row + 1, left.col);
+        Dot bottomRight = getDotAtRowCol(right.row + 1, right.col);
+
+        if(bottomLeft == null || bottomRight == null) return false;
+
+        return lineExists(bottomLeft, left) && lineExists(bottomRight, right) && lineExists(bottomLeft, bottomRight);
+    }
+
+    private boolean checkSquareLeft(Dot top, Dot bottom) {
+        Dot topLeft = getDotAtRowCol(top.row, top.col - 1);
+        Dot bottomLeft = getDotAtRowCol(bottom.row, bottom.col - 1);
+
+        if(topLeft == null || bottomLeft == null) return false;
+
+        return lineExists(top, topLeft) && lineExists(bottom, bottomLeft) && lineExists(topLeft, bottomLeft);
+    }
+
+    private boolean checkSquareRight(Dot top, Dot bottom) {
+        Dot topRight = getDotAtRowCol(top.row, top.col + 1);
+        Dot bottomRight = getDotAtRowCol(bottom.row, bottom.col + 1);
+
+        if(topRight == null || bottomRight == null) return false;
+
+        return lineExists(top, topRight) && lineExists(bottom, bottomRight) && lineExists(topRight, bottomRight);
+    }
+
 
     Dot getDotAt(float x, float y) {
         for (Dot dot : dots) {
@@ -335,65 +501,52 @@ public class Cliente extends PApplet implements Runnable {
         return ((dRow == 1 && dCol == 0) || (dRow == 0 && dCol == 1));
     }
 
-    void fillSquare(Dot d1, Dot d2) {
-        float dx = d2.x - d1.x;
-        float dy = d2.y - d1.y;
-
-        beginShape();
-        fill(255);
-        noStroke();
-
-        if (abs(dx) > abs(dy)) { // Horizontal line
-            vertex(d1.x, d1.y);
-            vertex(d2.x, d2.y);
-            vertex(d2.x + dy, d2.y - dx);
-            vertex(d1.x + dy, d1.y - dx);
-        } else { // Vertical line
-            vertex(d1.x, d1.y);
-            vertex(d2.x, d2.y);
-            vertex(d2.x + dx, d2.y + dy);
-            vertex(d1.x + dx, d1.y + dy);
-        }
-
-        endShape(CLOSE);
-    }
 
     class Square {
-        Dot d1, d2;
+        Dot topLeft;  // Punto superior izquierdo del cuadrado
+        Dot bottomRight; // Punto inferior derecho del cuadrado
+        int size;     // Tamaño del cuadrado, asumiendo que todos los cuadrados son del mismo tamaño
 
+        int color = -1; // Color del cuadrado, -1 si no se ha completado
 
-        Square(Dot d1, Dot d2) {
-            this.d1 = d1;
-            this.d2 = d2;
+        boolean isClosed(HashSet<String> lineSet) {
+            Line top = new Line(topLeft, getDotAt(topLeft.x, topLeft.y + size));
+            Line left = new Line(topLeft, getDotAt(topLeft.x + size, topLeft.y));
+            Line right = new Line(getDotAt(topLeft.x + size, topLeft.y), getDotAt(topLeft.x + size, topLeft.y + size));
+            Line bottom = new Line(getDotAt(topLeft.x, topLeft.y + size), getDotAt(topLeft.x + size, topLeft.y + size));
 
+            if (lineSet.contains(top.getUniqueRepresentation()) &&
+                    lineSet.contains(left.getUniqueRepresentation()) &&
+                    lineSet.contains(right.getUniqueRepresentation()) &&
+                    lineSet.contains(bottom.getUniqueRepresentation())) {
+                this.color = (currentPlayer == 1) ? player1Color : player2Color; // Set color
+                return true;
+            }
+
+            return false;
+        }
+        Square(Dot topLeft, Dot bottomRight) {
+            this.topLeft = topLeft;
+            this.bottomRight = bottomRight;
+            this.size = (int) (bottomRight.x - topLeft.x);
+        }
+        void setColor(int playerColor) {
+            this.color = playerColor;
         }
 
         void display() {
-            float dx = d2.x - d1.x;
-            float dy = d2.y - d1.y;
-
-            beginShape();
-
-            noStroke();
-
-            if (abs(dx) > abs(dy)) { // Horizontal line
-                vertex(d1.x, d1.y);
-                vertex(d2.x, d2.y);
-                vertex(d2.x + dy, d2.y - dx);
-                vertex(d1.x + dy, d1.y - dx);
-            } else { // Vertical line
-                vertex(d1.x, d1.y);
-                vertex(d2.x, d2.y);
-                vertex(d2.x + dx, d2.y + dy);
-                vertex(d1.x + dx, d1.y + dy);
+            if (color != -1) {
+                fill(color);
+                rect(topLeft.x, topLeft.y, size, size);
             }
-
-            endShape(CLOSE);
         }
     }
 
 
-    public void send(String hola){
+
+
+
+        public void send(String hola){
         try {
             Socket socket = new Socket("127.0.0.1",5000);
             DataOutputStream out = new DataOutputStream(socket.getOutputStream());
