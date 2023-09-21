@@ -13,68 +13,6 @@ import java.awt.event.*;
 
 public class Servidor {
 
-    public static class GameServerGUI {
-        private JFrame frame;
-        private JTextField matrixSizeField;
-        private JTextField playersField;
-        private JButton startButton;
-
-        public GameServerGUI() {
-            frame = new JFrame("Connect Dot Game Server");
-            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            frame.setSize(300, 200);
-            frame.setLayout(new GridLayout(3, 2));
-
-            // Tamaño de Matriz:
-            JLabel matrixSizeLabel = new JLabel("Tamaño de Matriz:");
-            matrixSizeField = new JTextField();
-
-            // Jugadores:
-            JLabel playersLabel = new JLabel("Jugadores:");
-            playersField = new JTextField();
-
-            // Botón de inicio:
-            startButton = new JButton("Iniciar Partida");
-            startButton.addActionListener(new ActionListener() {
-                @Override
-                public void actionPerformed(ActionEvent e) {
-                    startGame();
-                }
-            });
-
-            frame.add(matrixSizeLabel);
-            frame.add(matrixSizeField);
-            frame.add(playersLabel);
-            frame.add(playersField);
-            frame.add(startButton);
-
-            frame.setVisible(true);
-        }
-
-        private void startGame() {
-            System.out.println("Iniciando juego...");
-            int matrixSize = Integer.parseInt(matrixSizeField.getText());
-            int numPlayers = Integer.parseInt(playersField.getText());
-
-            String classpath = "C:\\Users\\Isaac\\Desktop\\CE\\Datos1\\ConnectDot\\out\\production\\prueba";
-            String javaCmd = System.getProperty("java.home") + "\\bin\\java";
-            System.out.println("Comando Java: " + javaCmd);
-
-            for (int i = 0; i < numPlayers; i++) {
-                try {
-                    System.out.println("Intentando iniciar Cliente...");
-
-                    ProcessBuilder pb = new ProcessBuilder(javaCmd, "-cp", classpath, "Cliente");
-                    pb.start();
-                    System.out.println("Cliente iniciado...");
-
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-    }
-
     public void startServer() {
         LinkedList<Integer> lista_puertos = new LinkedList<Integer>();
 
@@ -110,13 +48,8 @@ public class Servidor {
     }
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(new Runnable() {
-            @Override
-            public void run() {
-                new GameServerGUI();
-            }
-        });
         new Servidor().startServer();
     }
 }
 
+//        
