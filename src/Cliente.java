@@ -108,8 +108,10 @@ public class Cliente extends PApplet implements Runnable {
     int cols =10; // Number of columns
     int score = 0;
     int currentPlayer = 1;
-    int player1Color = color(255, 0, 0);  // Red for player 1
-    int  player2Color = color(0, 0, 255);  // Blue for player 2
+
+    int rand_int1 = (int) Math.random();
+    int player1Color = color(rand_int1+100, 0, 0);  // Red for player 1
+
     int selectedIndex = 0;
     int selectedRow = 0;
     int selectedCol = 0;
@@ -212,7 +214,7 @@ public class Cliente extends PApplet implements Runnable {
 
                     for (Square sq : completedSquares) {
                         squares.add(sq);
-                        sq.setColor((currentPlayer == 1) ? player1Color : player2Color); // Set color
+                        sq.setColor((currentPlayer == 1) ? player1Color : player1Color); // Set color
                         if (currentPlayer == 1) {
                             player1Score++;
                         } else {
@@ -244,7 +246,7 @@ public class Cliente extends PApplet implements Runnable {
                     sq.setColor(player1Color);
                     player1Score++;  // Incrementar el puntaje del jugador 1
                 } else {
-                    sq.setColor(player2Color);
+                    sq.setColor(player1Color);
                     player2Score++;  // Incrementar el puntaje del jugador 2
                 }
                 // No cambiamos el turno si alguien completa un cuadrado.
@@ -317,7 +319,7 @@ public class Cliente extends PApplet implements Runnable {
         }
 
         void display() {
-            stroke(lineColor);
+            stroke(player1Color);
             line(dot1.x, dot1.y, dot2.x, dot2.y);
         }
         String getUniqueRepresentation() {
@@ -458,23 +460,23 @@ public class Cliente extends PApplet implements Runnable {
         return lineExists(bottomLeft, left) && lineExists(bottomRight, right) && lineExists(bottomLeft, bottomRight);
     }
 
-    private boolean checkSquareLeft(Dot top, Dot bottom) {
-        Dot topLeft = getDotAtRowCol(top.row, top.col - 1);
-        Dot bottomLeft = getDotAtRowCol(bottom.row, bottom.col - 1);
+//    private boolean checkSquareLeft(Dot top, Dot bottom) {
+//        Dot topLeft = getDotAtRowCol(top.row, top.col - 1);
+//        Dot bottomLeft = getDotAtRowCol(bottom.row, bottom.col - 1);
+//
+//        if(topLeft == null || bottomLeft == null) return false;
+//
+//        return lineExists(top, topLeft) && lineExists(bottom, bottomLeft) && lineExists(topLeft, bottomLeft);
+//    }
 
-        if(topLeft == null || bottomLeft == null) return false;
-
-        return lineExists(top, topLeft) && lineExists(bottom, bottomLeft) && lineExists(topLeft, bottomLeft);
-    }
-
-    private boolean checkSquareRight(Dot top, Dot bottom) {
-        Dot topRight = getDotAtRowCol(top.row, top.col + 1);
-        Dot bottomRight = getDotAtRowCol(bottom.row, bottom.col + 1);
-
-        if(topRight == null || bottomRight == null) return false;
-
-        return lineExists(top, topRight) && lineExists(bottom, bottomRight) && lineExists(topRight, bottomRight);
-    }
+//    private boolean checkSquareRight(Dot top, Dot bottom) {
+//        Dot topRight = getDotAtRowCol(top.row, top.col + 1);
+//        Dot bottomRight = getDotAtRowCol(bottom.row, bottom.col + 1);
+//
+//        if(topRight == null || bottomRight == null) return false;
+//
+//        return lineExists(top, topRight) && lineExists(bottom, bottomRight) && lineExists(topRight, bottomRight);
+//    }
 
 
     Dot getDotAt(float x, float y) {
@@ -519,7 +521,7 @@ public class Cliente extends PApplet implements Runnable {
                     lineSet.contains(left.getUniqueRepresentation()) &&
                     lineSet.contains(right.getUniqueRepresentation()) &&
                     lineSet.contains(bottom.getUniqueRepresentation())) {
-                this.color = (currentPlayer == 1) ? player1Color : player2Color; // Set color
+                this.color = (currentPlayer == 1) ? player1Color : player1Color; // Set color
                 return true;
             }
 
