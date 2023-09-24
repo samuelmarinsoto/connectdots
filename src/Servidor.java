@@ -1,19 +1,10 @@
-import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.InputStreamReader;
+import java.io.EOFException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.LinkedList;
 import java.util.Objects;
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.*;
-import org.json.JSONObject;
-import org.json.JSONArray;
-import org.json.JSONTokener;
-import java.io.EOFException; // Importar EOFException
-import java.io.IOException; // Importar IOException
 
 public class Servidor {
 
@@ -25,46 +16,55 @@ public class Servidor {
 
             while (true) {
                 Socket serversocker = server.accept();
-                DataInputStream datos = new DataInputStream(serversocker.getInputStream());
-                String mensajes = datos.readUTF();
+                System.out.println("Cliente conectado: " + serversocker.getRemoteSocketAddress());
 
-                if (Objects.equals(String.valueOf(mensajes.charAt(0)), "0")) {
-                    mensajes = mensajes.substring(1, mensajes.length());
-                    int puerto_final = Integer.parseInt(mensajes);
-                    lista_puertos.add(puerto_final);
-                    System.out.println("Conectado: " + puerto_final);
-                } else {
-                    Socket mensajepuertos = null;
+                try (DataInputStream datos = new DataInputStream(serversocker.getInputStream())) {
+                    // if (datos.available() > 0) {
+                    String mensajes = datos.readUTF();
+                    System.out.println("Mensaje recibido: " + mensajes);
 
-                    // Parsear el mensaje JSON y imprimirlo de forma legible
-                    JSONTokener tokener = new JSONTokener(mensajes);
-                    Object json = tokener.nextValue();
-                    if (json instanceof JSONObject) {
-                        System.out.println(((JSONObject) json).toString(4)); // 4 es el número de espacios para la indentación
-                    } else if (json instanceof JSONArray) {
-                        System.out.println(((JSONArray) json).toString(4)); // 4 es el número de espacios para la indentación
+                    if (Objects.equals(String.valueOf(mensajes.charAt(0)), "0")) {
+                        mensajes = mensajes.substring(1, mensajes.length());
+                        int puerto_final = Integer.parseInt(mensajes);
+                        lista_puertos.add(puerto_final);
+                        System.out.println("Conectado: " + puerto_final);
                     } else {
-                        // No es un JSON válido
+                        Socket mensajepuertos;
+                        // Parsear el mensaje JSON y imprimirlo de forma legible
+                        // JSONTokener tokener = new JSONTokener(mensajes);
+                        // Object json = tokener.nextValue();
+                        // if (json instanceof JSONObject) {
+                        //     System.out.println(((JSONObject) json).toString(4)); // 4 es el número de espacios para la indentación
+                        // } else if (json instanceof JSONArray) {
+                        //     System.out.println(((JSONArray) json).toString(4)); // 4 es el número de espacios para la indentación
+                        // } else {
+                        //     // No es un JSON válido
                         System.out.println(mensajes);
+                        // }
+
+                        for (Integer puerto : lista_puertos) {
+                            mensajepuertos = new Socket("127.0.0.1", puerto);
+                            try (DataOutputStream out = new DataOutputStream(mensajepuertos.getOutputStream())) {
+                                out.writeUTF(mensajes);
+                            }
+                            mensajepuertos.close();
+                        }
                     }
 
-                    for (int i = 0; i < lista_puertos.size(); i++) {
-                        mensajepuertos = new Socket("127.0.0.1", lista_puertos.get(i));
-                        DataOutputStream out = new DataOutputStream(mensajepuertos.getOutputStream());
-                        out.writeUTF(mensajes);
-                        mensajepuertos.close();
-                    }
+                } catch (EOFException e) {
+                    System.out.println("Se ha alcanzado el final del flujo de datos");
+                } finally {
+                    serversocker.close();
                 }
             }
-		} catch (EOFException e) {	
-            System.out.println("Se ha alcanzado el final del flujo de datos");
-        } catch (IOException e) {
-            e.printStackTrace();
+
         } catch (Exception e) {
             e.printStackTrace();
+            // } catch (EOFException e) {
+            //     System.out.println("Se ha alcanzado el final del flujo de datos");
+            // } catch (IOException e) {
+            //     e.printStackTrace();
         }
-        
-        
     }
 
     public static void main(String[] args) {

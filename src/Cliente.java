@@ -89,6 +89,7 @@ public class Cliente extends PApplet implements Runnable {
 
 
     Socket socket;
+    DataOutputStream out;
     public static int color = 0;
 
     public static String samuel ="{}";
@@ -123,6 +124,12 @@ public class Cliente extends PApplet implements Runnable {
 
 
     public Cliente() {
+    try {
+    	this.socket = new Socket("127.0.0.1", 5000);
+    	this.out = new DataOutputStream(socket.getOutputStream());
+   	} catch (Exception e) {
+   		e.printStackTrace();
+   	}
 
         Thread hilo = new Thread(this);
         hilo.start();
@@ -183,6 +190,14 @@ public class Cliente extends PApplet implements Runnable {
             }
         }
     }
+    
+    public void send(String hola){
+            try {
+                out.writeUTF(hola);
+          	}  catch(Exception ex){
+                System.out.println(ex);
+          	}
+        }
     public void keyPressed() {
         if (key == 'A' || key == 'a') {
             selectedRow = max(0, selectedRow - 1);
@@ -193,10 +208,13 @@ public class Cliente extends PApplet implements Runnable {
         } else if (key == 'S' || key == 's') {
             selectedCol = min(cols - 1, selectedCol + 1);
         } else if (key == 'L' || key == 'l') {
+       	 
             Dot currentDot = getDotAtRowCol(selectedRow, selectedCol);
+            
             if (firstDot == null) {
                 firstDot = currentDot;
                 firstDot.isSelected = true;
+                
             } else {
                 if (areAdjacentDots(firstDot, currentDot) && !lineExists(firstDot, currentDot)) {
 
@@ -235,7 +253,12 @@ public class Cliente extends PApplet implements Runnable {
 			    jsonLines.put(lineToJson(line));
 			}
 			send(jsonLines.toString());
-			
+// 			try {
+// 				out.writeUTF(jsonLines.toString());
+// 
+// 			} catch (Exception e) {
+// 				e.printStackTrace();
+// 			}
         }
         HashSet<String> lineSet = new HashSet<>();
         for (Line line : lines) {
@@ -550,17 +573,7 @@ public class Cliente extends PApplet implements Runnable {
 
 
 
-   public void send(String hola){
-        try {
-            Socket socket = new Socket("127.0.0.1",5000);
-            DataOutputStream out = new DataOutputStream(socket.getOutputStream());
-            out.writeUTF(hola);
-            socket.close();
-        }
-        catch(Exception ex){
-            System.out.println(ex);
-        }
-    }
+   
     public void sendLinesAndDots() {
         JSONArray jsonLines = new JSONArray();
         for (Line line : lines) {
@@ -641,7 +654,7 @@ public class Cliente extends PApplet implements Runnable {
 
             DataOutputStream out = new DataOutputStream(socket.getOutputStream());
             out.writeUTF(puerto_codificado);
-            socket.close();
+            // socket.close();
 
 
             while(true){
@@ -681,9 +694,15 @@ public class Cliente extends PApplet implements Runnable {
     public static void main(String args[]) {
         Inicio  inicio = new Inicio();
 
-        // while(inicio.numero ==0){
-        //     System.out.println("1");
-        // }
+        while(inicio.numero ==0){
+        	try {
+        	TimeUnit.SECONDS.sleep(1);
+            System.out.println("1");
+            } catch (Exception e){
+            	e.printStackTrace();
+            	System.exit(0);
+            }
+        }
         java.awt.EventQueue.invokeLater(new Runnable() {
 
 
