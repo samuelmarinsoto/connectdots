@@ -1,9 +1,0 @@
-<component name="libraryTable">
-  <library name="processing-samu">
-    <CLASSES>
-      <root url="jar://$PROJECT_DIR$/lib/processing/core/library/core.jar!/" />
-    </CLASSES>
-    <JAVADOC />
-    <SOURCES />
-  </library>
-</component>
