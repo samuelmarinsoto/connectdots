@@ -9,7 +9,11 @@ import java.util.Objects;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
-
+import org.json.JSONObject;
+import org.json.JSONArray;
+import org.json.JSONTokener;
+import java.io.EOFException; // Importar EOFException
+import java.io.IOException; // Importar IOException
 
 public class Servidor {
 
@@ -31,7 +35,18 @@ public class Servidor {
                     System.out.println("Conectado: " + puerto_final);
                 } else {
                     Socket mensajepuertos = null;
-                    System.out.println(mensajes);
+
+                    // Parsear el mensaje JSON y imprimirlo de forma legible
+                    JSONTokener tokener = new JSONTokener(mensajes);
+                    Object json = tokener.nextValue();
+                    if (json instanceof JSONObject) {
+                        System.out.println(((JSONObject) json).toString(4)); // 4 es el número de espacios para la indentación
+                    } else if (json instanceof JSONArray) {
+                        System.out.println(((JSONArray) json).toString(4)); // 4 es el número de espacios para la indentación
+                    } else {
+                        // No es un JSON válido
+                        System.out.println(mensajes);
+                    }
 
                     for (int i = 0; i < lista_puertos.size(); i++) {
                         mensajepuertos = new Socket("127.0.0.1", lista_puertos.get(i));
@@ -39,17 +54,20 @@ public class Servidor {
                         out.writeUTF(mensajes);
                         mensajepuertos.close();
                     }
-                    System.out.println(mensajes);
                 }
             }
+		} catch (EOFException e) {	
+            System.out.println("Se ha alcanzado el final del flujo de datos");
+        } catch (IOException e) {
+            e.printStackTrace();
         } catch (Exception e) {
-            System.out.println(e);
+            e.printStackTrace();
         }
+        
+        
     }
 
     public static void main(String[] args) {
         new Servidor().startServer();
     }
 }
-
-//        

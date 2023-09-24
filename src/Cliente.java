@@ -1,4 +1,4 @@
-//import org.json.*;
+import org.json.*;
 import processing.core.PApplet;
 
 import java.awt.*;
@@ -11,14 +11,13 @@ import java.net.Socket;
 import java.util.Random;
 import java.util.SimpleTimeZone;
 import java.util.concurrent.TimeUnit;
-//import com.google.gson.Gson;
-//import com.google.gson.reflect.TypeToken;
 import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.HashSet;
-
+import org.json.JSONObject;
+import org.json.JSONArray;
 
 public class Cliente extends PApplet implements Runnable {
 
@@ -63,9 +62,6 @@ public class Cliente extends PApplet implements Runnable {
                 current = current.next;
             }
             return current.value;
-        }
-        public boolean isEmpty() {
-            return size == 0;
         }
 
         @Override
@@ -203,6 +199,7 @@ public class Cliente extends PApplet implements Runnable {
                 firstDot.isSelected = true;
             } else {
                 if (areAdjacentDots(firstDot, currentDot) && !lineExists(firstDot, currentDot)) {
+
                     Line newLine = new Line(firstDot, currentDot);
                     lines.add(newLine);
 
@@ -233,7 +230,12 @@ public class Cliente extends PApplet implements Runnable {
                 }
             }
 
-            send(lines.toString());
+			JSONArray jsonLines = new JSONArray();
+			for (Line line : lines) {
+			    jsonLines.put(lineToJson(line));
+			}
+			send(jsonLines.toString());
+			
         }
         HashSet<String> lineSet = new HashSet<>();
         for (Line line : lines) {
@@ -460,23 +462,23 @@ public class Cliente extends PApplet implements Runnable {
         return lineExists(bottomLeft, left) && lineExists(bottomRight, right) && lineExists(bottomLeft, bottomRight);
     }
 
-//    private boolean checkSquareLeft(Dot top, Dot bottom) {
-//        Dot topLeft = getDotAtRowCol(top.row, top.col - 1);
-//        Dot bottomLeft = getDotAtRowCol(bottom.row, bottom.col - 1);
-//
-//        if(topLeft == null || bottomLeft == null) return false;
-//
-//        return lineExists(top, topLeft) && lineExists(bottom, bottomLeft) && lineExists(topLeft, bottomLeft);
-//    }
+   private boolean checkSquareLeft(Dot top, Dot bottom) {
+       Dot topLeft = getDotAtRowCol(top.row, top.col - 1);
+       Dot bottomLeft = getDotAtRowCol(bottom.row, bottom.col - 1);
 
-//    private boolean checkSquareRight(Dot top, Dot bottom) {
-//        Dot topRight = getDotAtRowCol(top.row, top.col + 1);
-//        Dot bottomRight = getDotAtRowCol(bottom.row, bottom.col + 1);
-//
-//        if(topRight == null || bottomRight == null) return false;
-//
-//        return lineExists(top, topRight) && lineExists(bottom, bottomRight) && lineExists(topRight, bottomRight);
-//    }
+       if(topLeft == null || bottomLeft == null) return false;
+
+       return lineExists(top, topLeft) && lineExists(bottom, bottomLeft) && lineExists(topLeft, bottomLeft);
+   }
+
+   private boolean checkSquareRight(Dot top, Dot bottom) {
+       Dot topRight = getDotAtRowCol(top.row, top.col + 1);
+       Dot bottomRight = getDotAtRowCol(bottom.row, bottom.col + 1);
+
+       if(topRight == null || bottomRight == null) return false;
+
+       return lineExists(top, topRight) && lineExists(bottom, bottomRight) && lineExists(topRight, bottomRight);
+   }
 
 
     Dot getDotAt(float x, float y) {
@@ -548,7 +550,7 @@ public class Cliente extends PApplet implements Runnable {
 
 
 
-        public void send(String hola){
+   public void send(String hola){
         try {
             Socket socket = new Socket("127.0.0.1",5000);
             DataOutputStream out = new DataOutputStream(socket.getOutputStream());
@@ -559,6 +561,60 @@ public class Cliente extends PApplet implements Runnable {
             System.out.println(ex);
         }
     }
+    public void sendLinesAndDots() {
+        JSONArray jsonLines = new JSONArray();
+        for (Line line : lines) {
+            jsonLines.put(lineToJson(line));
+        }
+    
+        // Si también deseas enviar puntos, crea otro JSONArray y agrégalo al mensaje.
+    //     JSONArray jsonDots = new JSONArray();
+    //     for (Dot dot : dots) {
+    //         jsonDots.put(dotToJson(dot));
+    //     }
+    // 
+        // Crear un objeto JSON principal que contiene tanto las líneas como los puntos
+        // JSONObject mainJson = new JSONObject();
+        // mainJson.put("lines", jsonLines);
+        // mainJson.put("dots", jsonDots);
+    
+        // Enviar la representación en cadena del objeto JSON principal al servidor
+        send(jsonLines.toString());
+    }
+    
+    public JSONObject lineToJson(Line line) {
+        JSONObject json = new JSONObject();
+        json.put("dot1", dotToJson(line.dot1));
+        json.put("dot2", dotToJson(line.dot2));
+        return json;
+    }
+    
+    public JSONObject dotToJson(Dot dot) {
+        JSONObject json = new JSONObject();
+        json.put("x", dot.x);
+        json.put("y", dot.y);
+        json.put("row", dot.row);
+        json.put("col", dot.col);
+        return json;
+    }
+    public Line jsonLineToLine(JSONObject json) {
+            JSONObject jsonDot1 = json.getJSONObject("dot1");
+            JSONObject jsonDot2 = json.getJSONObject("dot2");
+            
+            Dot dot1 = jsonDotToDot(jsonDot1); // Asumiendo que tienes un método jsonDotToDot
+            Dot dot2 = jsonDotToDot(jsonDot2); // Asumiendo que tienes un método jsonDotToDot
+            
+            return new Line(dot1, dot2);
+        }
+    
+        public Dot jsonDotToDot(JSONObject json) {
+            float x = (float) json.getDouble("x");
+            float y = (float) json.getDouble("y");
+            int row = json.getInt("row");
+            int col = json.getInt("col");
+            
+            return new Dot(x, y, dotSize, row, col); // Asumiendo que dotSize es el tamaño de tus puntos
+        }
 
 /* public void mouseClicked(){
         Random rand = new Random();
@@ -569,7 +625,7 @@ public class Cliente extends PApplet implements Runnable {
 
 
     }
-*/
+*/	
     public void run() {
 
 
@@ -589,36 +645,45 @@ public class Cliente extends PApplet implements Runnable {
 
 
             while(true){
-                Socket serversocker =  server.accept();
-                DataInputStream datos = new DataInputStream(serversocker.getInputStream());
-
-                String mensajes = datos.readUTF();
-                System.out.println(mensajes);
-
-
-
-
-
-
-
-
-
-
-
-
-
+            Socket serverSocket = server.accept();
+            DataInputStream dataInput = new DataInputStream(serverSocket.getInputStream());
+            
+            String message = dataInput.readUTF();
+            System.out.println(message);
+            
+            // Parsear el mensaje JSON recibido
+            JSONArray jsonLines = new JSONArray(message);
+            
+            // Iterar sobre las líneas JSON y agregarlas a la lista local de líneas
+            for (int i = 0; i < jsonLines.length(); i++) {
+                JSONObject jsonLine = jsonLines.getJSONObject(i);
+                Line newLine = jsonLineToLine(jsonLine); // Método para convertir JSON a Line
+                lines.add(newLine);
+                
+                // Verificar si la nueva línea cierra un cuadrado y actualizar la interfaz y la puntuación
+                LinkedListCustom<Square> completedSquares = getCompletedSquares(newLine);
+                for (Square sq : completedSquares) {
+                    squares.add(sq);
+                    sq.setColor((currentPlayer == 1) ? player1Color : player1Color);
+                    if (currentPlayer == 1) {
+                        player1Score++;
+                    } else {
+                        player2Score++;
+                    }
+                }
             }
-
-        } catch (Exception e) {
-            System.out.println(e);}
+        }
+    } catch (Exception e) {
+        System.out.println(e);
     }
+}
 
     public static void main(String args[]) {
-        Inicio  inicio =new Inicio();
+        Inicio  inicio = new Inicio();
 
-        while(inicio.numero ==0){
-            System.out.println("1");
-        }
+        // while(inicio.numero ==0){
+        //     System.out.println("1");
+        // }
         java.awt.EventQueue.invokeLater(new Runnable() {
 
 
