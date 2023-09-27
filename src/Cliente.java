@@ -1,9 +1,8 @@
 import org.json.*;
 import processing.core.PApplet;
-
+import java.io.IOException;
 import java.awt.*;
 import java.util.ArrayList;
-
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.net.ServerSocket;
@@ -18,6 +17,7 @@ import java.util.NoSuchElementException;
 import java.util.HashSet;
 import org.json.JSONObject;
 import org.json.JSONArray;
+import javax.swing.JOptionPane;
 
 public class Cliente extends PApplet implements Runnable {
 
@@ -39,7 +39,9 @@ public class Cliente extends PApplet implements Runnable {
             head = null;
             size = 0;
         }
-
+        public int size() {
+            return size;
+        }
         void add(T value) {
             if (head == null) {
                 head = new Node<>(value);
@@ -92,22 +94,22 @@ public class Cliente extends PApplet implements Runnable {
     DataOutputStream out;
     public static int color = 0;
 
-    public static String samuel ="{}";
+    public static String samuel = "{}";
 
-    //public static  JSONObject data  = new JSONObject(samuel);
-//    public static JSONArray datos = new JSONArray();
+
     public static int juego_iniciado = 0;
     LinkedListCustom<Dot> dots;
     LinkedListCustom<Line> lines;
+    LinkedListCustom<Dot> selectedDots = new LinkedListCustom<Dot>();
     LinkedListCustom<Square> squares = new LinkedListCustom<Square>();
     int dotSize = 5;
-    int rows = 10; // Number of rows
-    int cols =10; // Number of columns
+    int rows; // Number of rows
+    int cols; // Number of columns
     int score = 0;
     int currentPlayer = 1;
 
     int rand_int1 = (int) Math.random();
-    int player1Color = color(rand_int1+100, 0, 0);  // Red for player 1
+    int player1Color = color(rand_int1 + 100, 0, 0);  // Red for player 1
 
     int selectedIndex = 0;
     int selectedRow = 0;
@@ -120,22 +122,22 @@ public class Cliente extends PApplet implements Runnable {
     Dot firstDot = null;
 
 
-
-
+    DataInputStream in;
 
     public Cliente() {
-    try {
-    	this.socket = new Socket("127.0.0.1", 5000);
-    	this.out = new DataOutputStream(socket.getOutputStream());
-   	} catch (Exception e) {
-   		e.printStackTrace();
-   	}
+        this.rows = 10;
+        this.cols = 10;
+        try {
+            this.socket = new Socket("127.0.0.1", 5000);
+            this.out = new DataOutputStream(socket.getOutputStream());
+            this.in = new DataInputStream(socket.getInputStream()); // Añadido aquí
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
         Thread hilo = new Thread(this);
         hilo.start();
-
     }
-
 
 
     public void settings() {
@@ -145,13 +147,8 @@ public class Cliente extends PApplet implements Runnable {
         generateDots();
     }
 
-    public void setup(){
-
+    public void setup() {
     }
-
-
-
-
 
     public void draw() {
         background(255);
@@ -173,32 +170,23 @@ public class Cliente extends PApplet implements Runnable {
         for (Dot dot : dots) {
             dot.display();
         }
-        text("Score Player 1: " + player1Score, 20, 30);
-        text("Score Player 2: " + player2Score, 20, 60);
-
         fill(255, 0, 0);
         text(errorMsg, 20, 90);
-    };
+    }
+
+    ;
 
 
     public void generateDots() {
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < cols; j++) {
-                float x = map(i, 0, rows - 1, dotSize, width - dotSize);
-                float y = map(j, 0, cols - 1, dotSize, height - dotSize);
-                dots.add(new Dot(x, y, dotSize, i, j));
+                dots.add(new Dot(i, j)); // Sólo pasamos la fila y la columna al constructor de Dot
             }
         }
     }
-    
-    public void send(String hola){
-            try {
-                out.writeUTF(hola);
-          	}  catch(Exception ex){
-                System.out.println(ex);
-          	}
-        }
+
     public void keyPressed() {
+        // Manejar la entrada del usuario para mover el punto seleccionado
         if (key == 'A' || key == 'a') {
             selectedRow = max(0, selectedRow - 1);
         } else if (key == 'W' || key == 'w') {
@@ -207,80 +195,123 @@ public class Cliente extends PApplet implements Runnable {
             selectedRow = min(rows - 1, selectedRow + 1);
         } else if (key == 'S' || key == 's') {
             selectedCol = min(cols - 1, selectedCol + 1);
-        } else if (key == 'L' || key == 'l') {
-       	 
+        } else  if (key == 'L' || key == 'l') {
             Dot currentDot = getDotAtRowCol(selectedRow, selectedCol);
-            
-            if (firstDot == null) {
-                firstDot = currentDot;
-                firstDot.isSelected = true;
-                
-            } else {
-                if (areAdjacentDots(firstDot, currentDot) && !lineExists(firstDot, currentDot)) {
+            currentDot.setSelected(true);
+            selectedDots.add(currentDot);
 
-                    Line newLine = new Line(firstDot, currentDot);
-                    lines.add(newLine);
-
-                    // Si se completa un cuadro, incrementa el puntaje del jugador correspondiente
-                    LinkedListCustom<Square> completedSquares = getCompletedSquares(newLine);
-                    if (completedSquares.size == 0) {
-                        currentPlayer = (currentPlayer == 1) ? 2 : 1;
-                    }
-
-                    for (Square sq : completedSquares) {
-                        squares.add(sq);
-                        sq.setColor((currentPlayer == 1) ? player1Color : player1Color); // Set color
-                        if (currentPlayer == 1) {
-                            player1Score++;
-                        } else {
-                            player2Score++;
-                        }
-                    }
-
-
-                    firstDot.isSelected = false;
-                    firstDot = null;
-                    errorMsg = ""; // limpiar el mensaje de error
-                } else {
-                    errorMsg = "Selecciona puntos adyacentes o puntos entre los que no exista una línea!";
-                    firstDot.isSelected = false;
-                    firstDot = null;
-                }
-            }
-
-			JSONArray jsonLines = new JSONArray();
-			for (Line line : lines) {
-			    jsonLines.put(lineToJson(line));
-			}
-			send(jsonLines.toString());
-// 			try {
-// 				out.writeUTF(jsonLines.toString());
-// 
-// 			} catch (Exception e) {
-// 				e.printStackTrace();
-// 			}
-        }
-        HashSet<String> lineSet = new HashSet<>();
-        for (Line line : lines) {
-            lineSet.add(line.getUniqueRepresentation());
-        }
-
-        for (Square sq : squares) {
-            if (sq.isClosed(lineSet)) {
-                if (currentPlayer == 1) {
-                    sq.setColor(player1Color);
-                    player1Score++;  // Incrementar el puntaje del jugador 1
-                } else {
-                    sq.setColor(player1Color);
-                    player2Score++;  // Incrementar el puntaje del jugador 2
-                }
-                // No cambiamos el turno si alguien completa un cuadrado.
-            } else {
-                // Cambio de turno
-                currentPlayer = (currentPlayer == 1) ? 2 : 1;
+            if (selectedDots.size() == 1) {
+                // Imprime un mensaje cuando el primer punto es seleccionado
+                System.out.println("Primer punto seleccionado");
+            } else if (selectedDots.size() == 2) {
+                // Dibuja una línea cuando el segundo punto es seleccionado
+                Line newLine = new Line(selectedDots.get(0), selectedDots.get(1));
+                lines.add(newLine);
+                // Vacía la lista de puntos seleccionados para la próxima línea
+                selectedDots = new LinkedListCustom<Dot>();
             }
         }
     }
+
+    // Comunicacion al servidor
+
+    public void sendActionToServer(Dot currentDot) {
+        JSONObject actionMessage = new JSONObject();
+        actionMessage.put("player", socket.getLocalPort());
+        actionMessage.put("dot", dotToJson(currentDot));
+
+        // Convierte el objeto JSON a una cadena y haz un print de ella
+        String jsonMessage = actionMessage.toString();
+        System.out.println("Enviando mensaje al servidor: " + jsonMessage);
+
+        try {
+            out.writeUTF(jsonMessage);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+
+    private JSONObject dotToJson(Dot currentDot) {
+        JSONObject json = new JSONObject();
+        json.put("row", currentDot.row);
+        json.put("col", currentDot.col);
+        return json;
+    }
+    public Dot jsonDotToDot(JSONObject json) {
+    int row = json.getInt("row");
+    int col = json.getInt("col");
+    return new Dot(row, col);
+}
+
+    public Line jsonLineToLine(JSONObject jsonLine) {
+        // Aquí debes extraer la información necesaria del JSONObject
+        // y utilizarla para crear y devolver un nuevo objeto Line.
+        // Este es solo un ejemplo básico:
+        JSONObject jsonDot1 = jsonLine.getJSONObject("dot1");
+        JSONObject jsonDot2 = jsonLine.getJSONObject("dot2");
+
+        Dot dot1 = jsonDotToDot(jsonDot1); // Asumiendo que tienes un método jsonDotToDot
+        Dot dot2 = jsonDotToDot(jsonDot2);
+
+        return new Line(dot1, dot2);
+    }
+
+
+
+    //Metodos de utilidad
+
+//    public void send(String hola){
+//            try {
+//                out.writeUTF(hola);
+//            }  catch(Exception ex){
+//                System.out.println(ex);
+//            }
+//        }
+//    public void sendLinesAndDots() {
+//        JSONArray jsonLines = new JSONArray();
+//        for (Line line : lines) {
+//            jsonLines.put(lineToJson(line));
+//        }
+//        send(jsonLines.toString());
+//    }
+//
+//    public JSONObject lineToJson(Line line) {
+//        JSONObject json = new JSONObject();
+//        json.put("dot1", dotToJson(line.dot1));
+//        json.put("dot2", dotToJson(line.dot2));
+//        return json;
+//    }
+//
+//    public JSONObject dotToJson(Dot dot) {
+//        JSONObject json = new JSONObject();
+//        json.put("x", dot.x);
+//        json.put("y", dot.y);
+//        json.put("row", dot.row);
+//        json.put("col", dot.col);
+//        return json;
+//    }
+//    public Line jsonLineToLine(JSONObject json) {
+//            JSONObject jsonDot1 = json.getJSONObject("dot1");
+//            JSONObject jsonDot2 = json.getJSONObject("dot2");
+//
+//            Dot dot1 = jsonDotToDot(jsonDot1); // Asumiendo que tienes un método jsonDotToDot
+//            Dot dot2 = jsonDotToDot(jsonDot2); // Asumiendo que tienes un método jsonDotToDot
+//
+//            return new Line(dot1, dot2);
+//        }
+//
+//        public Dot jsonDotToDot(JSONObject json) {
+//            float x = (float) json.getDouble("x");
+//            float y = (float) json.getDouble("y");
+//            int row = json.getInt("row");
+//            int col = json.getInt("col");
+//
+//            return new Dot(x, y, dotSize, row, col); // Asumiendo que dotSize es el tamaño de tus puntos
+//        }
+
+    //Metodos auxiliares de logica del juego
 
 
     public boolean lineExists(Dot d1, Dot d2) {
@@ -291,7 +322,12 @@ public class Cliente extends PApplet implements Runnable {
         }
         return false;
     }
+    private boolean doesSquareExist(Dot topLeft, Dot bottomRight) {
+        Dot topRight = getDotAtRowCol(topLeft.row, bottomRight.col);
+        Dot bottomLeft = getDotAtRowCol(bottomRight.row, topLeft.col);
 
+        return lineExists(topLeft, topRight) && lineExists(topLeft, bottomLeft) && lineExists(bottomRight, bottomLeft) && lineExists(bottomRight, topRight);
+    }
     Dot getDotAtRowCol(int row, int col) {
         for (Dot dot : dots) {
             if (dot.row == row && dot.col == col) {
@@ -300,62 +336,124 @@ public class Cliente extends PApplet implements Runnable {
         }
         return null;
     }
-
-    class Dot {
-        float x, y;
-        float radius;
-        boolean isSelected = false;
-        int row, col;
-
-        Dot(float x, float y, float radius, int row, int col) {
-            this.x = x;
-            this.y = y;
-            this.radius = radius;
-            this.row = row;
-            this.col = col;
-        }
-
-        void display() {
-            noStroke();
-            if (row == selectedRow && col == selectedCol) {
-                fill(0, 0, 255);  // Blue for the currently highlighted dot
-            } else if (isSelected) {
-                fill(0, 255, 0);  // Green for the selected dot
-            } else {
-                fill(100, 100, 100);
+    Dot getDotAt(int x, int y) {
+        for (Dot dot : dots) {
+            if (Math.abs(dot.row - x) < 1 && Math.abs(dot.col - y) < 1) {
+                return dot;
             }
-            ellipse(x, y, radius * 2, radius * 2);
         }
+        return null;
+    }
+    static int convertRowToX(int row) {
+            int spacingX = 40; // Distancia entre los puntos en el eje x
+            int marginLeft = 20; // Margen inicial en el eje x
+            return marginLeft + row * spacingX;
+        }
+
+        static int convertColToY(int col) {
+            int spacingY = 40; // Distancia entre los puntos en el eje y
+            int marginTop = 20; // Margen inicial en el eje y
+            return marginTop + col * spacingY;
+        }
+
+    //CLASES INTERNAS
+    class Dot {
+    int row, col;
+    boolean isSelected = false; // Nuevo campo para indicar si el Dot está seleccionado
+
+    Dot(int row, int col) {
+        this.row = row;
+        this.col = col;
+    }
+
+    void display() {
+        noStroke();
+        int x = Cliente.convertRowToX(row);
+        int y = Cliente.convertColToY(col);
+
+        if (row == selectedRow && col == selectedCol) {
+            fill(0, 0, 255);  // Blue for the currently highlighted dot
+        } else if (isSelected) {
+            fill(0, 255, 0);  // Green for the selected dot
+        } else {
+            fill(100, 100, 100);
+        }
+
+        int radius = 5; // Puedes ajustar el valor del radio aquí
+        ellipse(x, y, radius * 2, radius * 2);
+    }
+
         String getIdentifier() {
             return row + "," + col;
         }
-    }
 
-    class Line {
-        Dot dot1, dot2;
-        int lineColor = 0;
-        Dot start;
-        Dot end;
-
-        Line(Dot dot1, Dot dot2) {
-            this.dot1 = dot1;
-            this.dot2 = dot2;
-            this.lineColor = 0;
-        }
-
-        void display() {
-            stroke(player1Color);
-            line(dot1.x, dot1.y, dot2.x, dot2.y);
-        }
-        String getUniqueRepresentation() {
-            return dot1.getIdentifier() + "-" + dot2.getIdentifier();
+        // Nuevo método para establecer el campo isSelected
+        void setSelected(boolean isSelected) {
+            this.isSelected = isSelected;
         }
     }
-    private boolean doesSquareExist(Dot topLeft, Dot bottomRight) {
-        Dot topRight = getDotAtRowCol(topLeft.row, bottomRight.col);
-        Dot bottomLeft = getDotAtRowCol(bottomRight.row, topLeft.col);
+    public LinkedListCustom<Square> getCompletedSquares(Line line) {
+        LinkedListCustom<Square> completedSquares = new LinkedListCustom<>();
 
-        return lineExists(topLeft, topRight) && lineExists(topLeft, bottomLeft) && lineExists(bottomRight, bottomLeft) && lineExists(bottomRight, topRight);
+        if (line.dot1.row == line.dot2.row) { // línea horizontal
+            Square above = getSquareAbove(line.dot1, line.dot2);
+            Square below = getSquareBelow(line.dot1, line.dot2);
+
+            if (above != null) {
+                completedSquares.add(above);
+            }
+            if (below != null) {
+                completedSquares.add(below);
+            }
+
+        } else { // línea vertical
+            Square left = getSquareLeft(line.dot1, line.dot2);
+            Square right = getSquareRight(line.dot1, line.dot2);
+
+            if (left != null) {
+                completedSquares.add(left);
+            }
+            if (right != null) {
+                completedSquares.add(right);
+            }
+        }
+
+        return completedSquares;
+    }
+    private boolean checkSquareAbove(Dot left, Dot right) {
+        Dot topLeft = getDotAtRowCol(left.row - 1, left.col);
+        Dot topRight = getDotAtRowCol(right.row - 1, right.col);
+
+        if(topLeft == null || topRight == null) return false;
+
+        return lineExists(topLeft, left) && lineExists(topRight, right) && lineExists(topLeft, topRight);
+    }
+
+    private boolean checkSquareBelow(Dot left, Dot right) {
+        Dot bottomLeft = getDotAtRowCol(left.row + 1, left.col);
+        Dot bottomRight = getDotAtRowCol(right.row + 1, right.col);
+
+        if(bottomLeft == null || bottomRight == null) return false;
+
+        return lineExists(bottomLeft, left) && lineExists(bottomRight, right) && lineExists(bottomLeft, bottomRight);
+    }
+
+    private boolean checkSquareLeft(Dot top, Dot bottom) {
+        Dot topLeft = getDotAtRowCol(top.row, top.col - 1);
+        Dot bottomLeft = getDotAtRowCol(bottom.row, bottom.col - 1);
+
+        if(topLeft == null || bottomLeft == null) return false;
+
+        return lineExists(top, topLeft) && lineExists(bottom, bottomLeft) && lineExists(topLeft, bottomLeft);
+    }
+
+    private boolean checkSquareRight(Dot top, Dot bottom) {
+        Dot topRight = getDotAtRowCol(top.row, top.col + 1);
+        Dot bottomRight = getDotAtRowCol(bottom.row, bottom.col + 1);
+
+        if(topRight == null || bottomRight == null) return false;
+
+        return lineExists(top, topRight) && lineExists(bottom, bottomRight) && lineExists(topRight, bottomRight);
     }
     private Square getSquareAbove(Dot d1, Dot d2) {
         if (d1.row != d2.row) {
@@ -414,7 +512,7 @@ public class Cliente extends PApplet implements Runnable {
         }
         return null;
     }
-    private Square getSquareRight(Dot d1, Dot d2) {
+    public Square getSquareRight(Dot d1, Dot d2) {
         if (d1.col != d2.col) {
             return null; // Not a vertical line
         }
@@ -434,114 +532,43 @@ public class Cliente extends PApplet implements Runnable {
         return null;
     }
 
+    class Line {
+        Dot dot1, dot2;
+        int lineColor = 0;
 
-
-    public LinkedListCustom<Square> getCompletedSquares(Line line) {
-        LinkedListCustom<Square> completedSquares = new LinkedListCustom<>();
-
-        if (line.dot1.row == line.dot2.row) { // línea horizontal
-            Square above = getSquareAbove(line.dot1, line.dot2);
-            Square below = getSquareBelow(line.dot1, line.dot2);
-
-            if (above != null) {
-                completedSquares.add(above);
-            }
-            if (below != null) {
-                completedSquares.add(below);
-            }
-
-        } else { // línea vertical
-            Square left = getSquareLeft(line.dot1, line.dot2);
-            Square right = getSquareRight(line.dot1, line.dot2);
-
-            if (left != null) {
-                completedSquares.add(left);
-            }
-            if (right != null) {
-                completedSquares.add(right);
-            }
+        Line(Dot dot1, Dot dot2) {
+            this.dot1 = dot1;
+            this.dot2 = dot2;
+            this.lineColor = 0;
         }
 
-        return completedSquares;
-    }
-
-
-
-    private boolean checkSquareAbove(Dot left, Dot right) {
-        Dot topLeft = getDotAtRowCol(left.row - 1, left.col);
-        Dot topRight = getDotAtRowCol(right.row - 1, right.col);
-
-        if(topLeft == null || topRight == null) return false;
-
-        return lineExists(topLeft, left) && lineExists(topRight, right) && lineExists(topLeft, topRight);
-    }
-
-    private boolean checkSquareBelow(Dot left, Dot right) {
-        Dot bottomLeft = getDotAtRowCol(left.row + 1, left.col);
-        Dot bottomRight = getDotAtRowCol(right.row + 1, right.col);
-
-        if(bottomLeft == null || bottomRight == null) return false;
-
-        return lineExists(bottomLeft, left) && lineExists(bottomRight, right) && lineExists(bottomLeft, bottomRight);
-    }
-
-   private boolean checkSquareLeft(Dot top, Dot bottom) {
-       Dot topLeft = getDotAtRowCol(top.row, top.col - 1);
-       Dot bottomLeft = getDotAtRowCol(bottom.row, bottom.col - 1);
-
-       if(topLeft == null || bottomLeft == null) return false;
-
-       return lineExists(top, topLeft) && lineExists(bottom, bottomLeft) && lineExists(topLeft, bottomLeft);
-   }
-
-   private boolean checkSquareRight(Dot top, Dot bottom) {
-       Dot topRight = getDotAtRowCol(top.row, top.col + 1);
-       Dot bottomRight = getDotAtRowCol(bottom.row, bottom.col + 1);
-
-       if(topRight == null || bottomRight == null) return false;
-
-       return lineExists(top, topRight) && lineExists(bottom, bottomRight) && lineExists(topRight, bottomRight);
-   }
-
-
-    Dot getDotAt(float x, float y) {
-        for (Dot dot : dots) {
-            if (abs(dot.x - x) < 1 && abs(dot.y - y) < 1) {
-                return dot;
-            }
+        void display() {
+            stroke(player1Color);
+            int x1 = Cliente.convertRowToX(dot1.row);
+            int y1 = Cliente.convertColToY(dot1.col);
+            int x2 = Cliente.convertRowToX(dot2.row);
+            int y2 = Cliente.convertColToY(dot2.col);
+            line(x1, y1, x2, y2);
         }
-        return null;
-    }
 
-    boolean isLineExists(Dot d1, Dot d2) {
-        for (Line line : lines) {
-            if ((line.dot1 == d1 && line.dot2 == d2) || (line.dot1 == d2 && line.dot2 == d1)) {
-                return true;
-            }
+        String getUniqueRepresentation() {
+            return dot1.getIdentifier() + "-" + dot2.getIdentifier();
         }
-        return false;
     }
-    boolean areAdjacentDots(Dot dot1, Dot dot2) {
-        int dRow = abs(dot1.row - dot2.row);
-        int dCol = abs(dot1.col - dot2.col);
-
-        return ((dRow == 1 && dCol == 0) || (dRow == 0 && dCol == 1));
-    }
-
 
     class Square {
-        Dot topLeft;  // Punto superior izquierdo del cuadrado
-        Dot bottomRight; // Punto inferior derecho del cuadrado
-        int size;     // Tamaño del cuadrado, asumiendo que todos los cuadrados son del mismo tamaño
+        Dot topLeft;
+        Dot bottomRight;
+        int size;
 
-        int color = -1; // Color del cuadrado, -1 si no se ha completado
+        int color = -1;
 
         boolean isClosed(HashSet<String> lineSet) {
-            Line top = new Line(topLeft, getDotAt(topLeft.x, topLeft.y + size));
-            Line left = new Line(topLeft, getDotAt(topLeft.x + size, topLeft.y));
-            Line right = new Line(getDotAt(topLeft.x + size, topLeft.y), getDotAt(topLeft.x + size, topLeft.y + size));
-            Line bottom = new Line(getDotAt(topLeft.x, topLeft.y + size), getDotAt(topLeft.x + size, topLeft.y + size));
-
+            int sizePixel = Cliente.convertRowToX(1) - Cliente.convertRowToX(0);
+            Line top = new Line(topLeft, getDotAt(topLeft.row, topLeft.col + 1));
+            Line left = new Line(topLeft, getDotAt(topLeft.row + 1, topLeft.col));
+            Line right = new Line(getDotAt(topLeft.row + 1, topLeft.col), getDotAt(topLeft.row + 1, topLeft.col + 1));
+            Line bottom = new Line(getDotAt(topLeft.row, topLeft.col + 1), getDotAt(topLeft.row + 1, topLeft.col + 1));
             if (lineSet.contains(top.getUniqueRepresentation()) &&
                     lineSet.contains(left.getUniqueRepresentation()) &&
                     lineSet.contains(right.getUniqueRepresentation()) &&
@@ -552,11 +579,13 @@ public class Cliente extends PApplet implements Runnable {
 
             return false;
         }
+
         Square(Dot topLeft, Dot bottomRight) {
             this.topLeft = topLeft;
             this.bottomRight = bottomRight;
-            this.size = (int) (bottomRight.x - topLeft.x);
+            this.size = Cliente.convertRowToX(bottomRight.row) - Cliente.convertRowToX(topLeft.row);
         }
+
         void setColor(int playerColor) {
             this.color = playerColor;
         }
@@ -564,163 +593,83 @@ public class Cliente extends PApplet implements Runnable {
         void display() {
             if (color != -1) {
                 fill(color);
-                rect(topLeft.x, topLeft.y, size, size);
+                int x = Cliente.convertRowToX(topLeft.row);
+                int y = Cliente.convertColToY(topLeft.col);
+                rect(x, y, size, size);
             }
         }
     }
 
+    //Métodos de lógica del juego
 
 
 
-
-   
-    public void sendLinesAndDots() {
-        JSONArray jsonLines = new JSONArray();
-        for (Line line : lines) {
-            jsonLines.put(lineToJson(line));
-        }
-    
-        // Si también deseas enviar puntos, crea otro JSONArray y agrégalo al mensaje.
-    //     JSONArray jsonDots = new JSONArray();
-    //     for (Dot dot : dots) {
-    //         jsonDots.put(dotToJson(dot));
-    //     }
-    // 
-        // Crear un objeto JSON principal que contiene tanto las líneas como los puntos
-        // JSONObject mainJson = new JSONObject();
-        // mainJson.put("lines", jsonLines);
-        // mainJson.put("dots", jsonDots);
-    
-        // Enviar la representación en cadena del objeto JSON principal al servidor
-        send(jsonLines.toString());
-    }
-    
-    public JSONObject lineToJson(Line line) {
-        JSONObject json = new JSONObject();
-        json.put("dot1", dotToJson(line.dot1));
-        json.put("dot2", dotToJson(line.dot2));
-        return json;
-    }
-    
-    public JSONObject dotToJson(Dot dot) {
-        JSONObject json = new JSONObject();
-        json.put("x", dot.x);
-        json.put("y", dot.y);
-        json.put("row", dot.row);
-        json.put("col", dot.col);
-        return json;
-    }
-    public Line jsonLineToLine(JSONObject json) {
-            JSONObject jsonDot1 = json.getJSONObject("dot1");
-            JSONObject jsonDot2 = json.getJSONObject("dot2");
-            
-            Dot dot1 = jsonDotToDot(jsonDot1); // Asumiendo que tienes un método jsonDotToDot
-            Dot dot2 = jsonDotToDot(jsonDot2); // Asumiendo que tienes un método jsonDotToDot
-            
-            return new Line(dot1, dot2);
-        }
-    
-        public Dot jsonDotToDot(JSONObject json) {
-            float x = (float) json.getDouble("x");
-            float y = (float) json.getDouble("y");
-            int row = json.getInt("row");
-            int col = json.getInt("col");
-            
-            return new Dot(x, y, dotSize, row, col); // Asumiendo que dotSize es el tamaño de tus puntos
-        }
-
-/* public void mouseClicked(){
-        Random rand = new Random();
-        int rand_int1 = rand.nextInt(300);
-        String mensaje =data.put("color",rand_int1).toString();
-
-        send(mensaje);
-
-
-    }
-*/	
     public void run() {
-
-
-
         try {
-
-
             ServerSocket server = new ServerSocket(0);
-            Socket socket = new Socket("127.0.0.1",5000);
+            Socket socket = new Socket("127.0.0.1", 5000);
 
-
-            String puerto_codificado = String.valueOf("0" + server.getLocalPort());
+            String puerto_codificado = String.valueOf(server.getLocalPort());
 
             DataOutputStream out = new DataOutputStream(socket.getOutputStream());
             out.writeUTF(puerto_codificado);
-            // socket.close();
 
+            while (true) {
+                Socket serverSocket = server.accept();
+                DataInputStream dataInput = new DataInputStream(serverSocket.getInputStream());
 
-            while(true){
-            Socket serverSocket = server.accept();
-            DataInputStream dataInput = new DataInputStream(serverSocket.getInputStream());
-            
-            String message = dataInput.readUTF();
-            System.out.println(message);
-            
-            // Parsear el mensaje JSON recibido
-            JSONArray jsonLines = new JSONArray(message);
-            
-            // Iterar sobre las líneas JSON y agregarlas a la lista local de líneas
-            for (int i = 0; i < jsonLines.length(); i++) {
-                JSONObject jsonLine = jsonLines.getJSONObject(i);
-                Line newLine = jsonLineToLine(jsonLine); // Método para convertir JSON a Line
-                lines.add(newLine);
-                
-                // Verificar si la nueva línea cierra un cuadrado y actualizar la interfaz y la puntuación
-                LinkedListCustom<Square> completedSquares = getCompletedSquares(newLine);
-                for (Square sq : completedSquares) {
-                    squares.add(sq);
-                    sq.setColor((currentPlayer == 1) ? player1Color : player1Color);
-                    if (currentPlayer == 1) {
-                        player1Score++;
-                    } else {
-                        player2Score++;
+                String message = dataInput.readUTF();
+                System.out.println("Mensaje recibido del servidor: " + message);
+
+                // Parsear el mensaje JSON recibido
+                JSONArray jsonLines = new JSONArray(message);
+
+                // Iterar sobre las líneas JSON y agregarlas a la lista local de líneas
+                for (int i = 0; i < jsonLines.length(); i++) {
+                    JSONObject jsonLine = jsonLines.getJSONObject(i);
+
+                    // Convertir JSON a Line y agregar a la lista de líneas
+                    Line newLine = jsonLineToLine(jsonLine);
+                    lines.add(newLine);
+
+                    // Verificar si la nueva línea cierra un cuadrado y actualizar la interfaz y la puntuación
+                    LinkedListCustom<Square> completedSquares = getCompletedSquares(newLine);
+                    for (Square sq : completedSquares) {
+                        squares.add(sq);
+                        sq.setColor((currentPlayer == 1) ? player1Color : player1Color);
+                        if (currentPlayer == 1) {
+                            player1Score++;
+                        } else {
+                            player2Score++;
+                        }
                     }
                 }
             }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-    } catch (Exception e) {
-        System.out.println(e);
     }
-}
+
 
     public static void main(String args[]) {
         Inicio  inicio = new Inicio();
-
-        while(inicio.numero ==0){
-        	try {
-        	TimeUnit.SECONDS.sleep(1);
-            System.out.println("1");
-            } catch (Exception e){
-            	e.printStackTrace();
-            	System.exit(0);
+            while(inicio.numero ==0){
+                try {
+                    TimeUnit.SECONDS.sleep(1);
+                System.out.println("1");
+                } catch (Exception e){
+                    e.printStackTrace();
+                    System.exit(0);
+                }
             }
+            java.awt.EventQueue.invokeLater(new Runnable() {
+                public void run() {
+                    PApplet.main("Cliente");
+                }
+            });
         }
-        java.awt.EventQueue.invokeLater(new Runnable() {
-
-
-            public void run() {
-
-                PApplet.main("Cliente");
-
-            }
-
-        });
-
-
-
     }
 
-
-
-}
 
 
 
