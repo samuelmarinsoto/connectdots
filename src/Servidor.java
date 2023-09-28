@@ -25,7 +25,7 @@ public class Servidor extends PApplet {
     LinkedListCustom<Dot> selectedDots = new LinkedListCustom<Dot>();
     String errorMsg = "";
     private Queue<Player> playerQueue = new Queue<>();
-    long elapsedTime = 0;
+    long elapsedTime;
     boolean gameStarted = false;
     DataInputStream out;
     private final ArrayList<Color> colors = new ArrayList<>(
@@ -570,6 +570,37 @@ public class Servidor extends PApplet {
         Color playerColor = coloresDisponibles.poll(); // Obtener el siguiente color disponible
         return playerColor;
     }
+
+    public void startGameCountdown() {
+        elapsedTime = System.currentTimeMillis(); // Inicializar elapsedTime aquí
+        Thread countdownThread = new Thread(() -> {
+            try {
+                while (true) {
+                    long currentTime = System.currentTimeMillis();
+                    long timeLeft = 10000 - (currentTime - elapsedTime);
+
+                    if (!gameStarted && timeLeft <= 0) {
+                        gameStarted = true;
+                        System.out.println("La partida ha comenzado.");
+
+                        // Informar a todos los clientes conectados que la partida ha comenzado
+                        while (!playerQueue.isEmpty()) {
+                            Player player = playerQueue.dequeue();
+                            DataOutputStream out = new DataOutputStream(player.getSocket().getOutputStream());
+                            out.writeUTF("Partida Comenzada");
+                        }
+                    }
+
+                    // Dormir durante un segundo antes de verificar nuevamente
+                    Thread.sleep(1000);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+
+        countdownThread.start();
+    }
     class ClientHandler implements Runnable {
         private Socket clientSocket;
 
@@ -582,20 +613,6 @@ public class Servidor extends PApplet {
             try {
                 DataInputStream in = new DataInputStream(clientSocket.getInputStream());
 
-                // Aquí va el código de aceptación de la conexión
-
-                long currentTime = System.currentTimeMillis();
-                if (!gameStarted) {
-                    if (playerQueue.isEmpty()) {
-                        // Si es el primer cliente, establecer el tiempo de inicio
-                        elapsedTime = currentTime;
-                    } else if (currentTime - elapsedTime >= 30000) {
-                        // Si ha pasado más de 30 segundos, habilitar la partida
-                        gameStarted = true;
-                        System.out.println("La partida ha comenzado.");
-                    }
-                }
-
                 // Asignar colores a los clientes en el orden en que se conectan
                 if (!gameStarted) {
                     Color playerColor = getNextPlayerColor();
@@ -603,8 +620,6 @@ public class Servidor extends PApplet {
                     playerQueue.enqueue(player);
                     System.out.println("Cliente conectado. Color asignado: " + playerColor);
                 } else {
-                    // El juego ha comenzado, los nuevos clientes quedan en espera.
-                    // Puedes agregar un mensaje o lógica adicional aquí si lo necesitas.
                     System.out.println("La partida ha comenzado. Cliente en espera.");
                 }
 
@@ -613,7 +628,6 @@ public class Servidor extends PApplet {
             }
         }
     }
-
 
 
     public void startServer() {
@@ -626,7 +640,10 @@ public class Servidor extends PApplet {
                 try {
                     Socket clientSocket = server.accept();
                     System.out.println("Cliente conectado: " + clientSocket.getRemoteSocketAddress());
-
+                    if (playerQueue.isEmpty()){
+                        // Llama al método para iniciar la cuenta regresiva del juego
+                        startGameCountdown();
+                    }
                     // Crear DataOutputStream para enviar mensajes al cliente
                     DataOutputStream out = new DataOutputStream(clientSocket.getOutputStream());
 
@@ -639,8 +656,10 @@ public class Servidor extends PApplet {
                     out.writeUTF(mallaInfo.toString());
 
                     // Enviar mensaje informativo "Conexión exitosa" al cliente
-                    out.writeUTF("INFO:Conexión exitosa");
-
+                    JSONObject jsonResponse = new JSONObject();
+                    jsonResponse.put("status", "INFO");
+                    jsonResponse.put("message", "Conexión exitosa");
+                    out.writeUTF(jsonResponse.toString());
                     // Iniciar hilo para manejar al cliente
                     Thread clientThread = new Thread(new ClientHandler(clientSocket));
                     clientThread.start();

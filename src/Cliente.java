@@ -19,7 +19,8 @@ import org.json.JSONObject;
 import org.json.JSONArray;
 import javax.swing.JOptionPane;
 import java.io.EOFException;
-
+import java.util.Timer;
+import java.util.TimerTask;
 
 
 public class Cliente extends PApplet implements Runnable {
@@ -106,13 +107,13 @@ public class Cliente extends PApplet implements Runnable {
             };
         }
     }
-
-
+    // Variables
     Socket socket;
     DataOutputStream out;
     public static int color = 0;
 
     public static String samuel = "{}";
+    private boolean partidaComenzada = false;
 
 
     public static int juego_iniciado = 0;
@@ -143,28 +144,35 @@ public class Cliente extends PApplet implements Runnable {
 
 
     DataInputStream in;
-
     public Cliente() {
-        try {
-            this.socket = new Socket("127.0.0.1", 5000);
-            this.out = new DataOutputStream(socket.getOutputStream());
-            this.in = new DataInputStream(socket.getInputStream());
-            System.out.println("Cliente conectado con el socket: " + socket);
+            try {
+                this.socket = new Socket("127.0.0.1", 5000);
+                this.out = new DataOutputStream(socket.getOutputStream());
+                this.in = new DataInputStream(socket.getInputStream());
+                System.out.println("Cliente conectado con el socket: " + socket);
 
-            // Recibir las dimensiones del servidor
-            String dimensionsMessage = in.readUTF();
-            JSONObject dimensions = new JSONObject(dimensionsMessage);
-            this.rows = dimensions.getInt("rows");
-            this.cols = dimensions.getInt("cols");
-        } catch (Exception e) {
-            e.printStackTrace();
+                // Recibir las dimensiones del servidor
+                String dimensionsMessage = in.readUTF();
+                JSONObject dimensions = new JSONObject(dimensionsMessage);
+                this.rows = dimensions.getInt("rows");
+                this.cols = dimensions.getInt("cols");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            Thread hilo = new Thread(this);
+            hilo.start();
+
+            // Programar el pull cada X segundos (ajusta el valor según tu necesidad)
+            Timer timer = new Timer();
+            int pullIntervalSeconds = 5; // Ejemplo: pull cada 5 segundos
+            timer.scheduleAtFixedRate(new TimerTask() {
+                @Override // Asegúrate de que estás usando @Override correctamente
+                public void run() {
+                    pullGameStateFromServer();
+                }
+            }, 0, pullIntervalSeconds * 1000); // Convertir segundos a milisegundos
         }
-
-        Thread hilo = new Thread(this);
-        hilo.start();
-    }
-
-
 
     public void settings() {
         int windowSizeX = convertRowToX(rows) - 10; // Ajustar según sea necesario
@@ -214,6 +222,11 @@ public class Cliente extends PApplet implements Runnable {
     }
 
     public void keyPressed() {
+        if (!partidaComenzada) {
+        // Si la partida no ha comenzado, no permitir al usuario realizar acciones
+            return;
+        }
+
         // Manejar la entrada del usuario para mover el punto seleccionado
         if (key == 'A' || key == 'a') {
             selectedRow = max(0, selectedRow - 1);
@@ -407,6 +420,22 @@ public class Cliente extends PApplet implements Runnable {
             int marginTop = 20; // Margen inicial en el eje y
             return marginTop + col * spacingY;
         }
+    private void pullGameStateFromServer() {
+        try {
+            // Enviar solicitud al servidor para obtener el estado del juego
+            JSONObject request = new JSONObject();
+            request.put("action", "pull");
+            out.writeUTF(request.toString());
+
+            // Leer la respuesta del servidor
+            String response = in.readUTF();
+            // Procesar la respuesta (puede ser un JSON que contiene el estado del juego)
+            // Aquí debes actualizar la representación local del juego con la información recibida
+            // y luego volver a dibujar la pantalla.
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
     //CLASES INTERNAS
     class Dot {
@@ -666,20 +695,34 @@ public class Cliente extends PApplet implements Runnable {
             // Leer la respuesta del servidor
             String respuesta = in.readUTF();
             System.out.println("Información de la partida recibida: " + respuesta);
-
-            // Parsear la respuesta JSON para obtener las dimensiones de la malla
             JSONObject partidaInfo = new JSONObject(respuesta);
-            rows = partidaInfo.getInt("rows");
-            cols = partidaInfo.getInt("cols");
 
-            // Generar los puntos de acuerdo a las dimensiones recibidas
-            generateDots();
+            if (partidaInfo.has("rows")) {
+                // La clave "rows" existe, acceder a ella
+                rows = partidaInfo.getInt("rows");
+                cols = partidaInfo.getInt("cols");
+
+                // Generar los puntos de acuerdo a las dimensiones recibidas
+                generateDots();
+            } else if (partidaInfo.has("status")) {
+                // Manejar mensajes de estado, como "INFO"
+                System.out.println(partidaInfo.getString("message"));
+            } else {
+                // Manejar otros casos o errores
+                System.err.println("Mensaje desconocido: " + respuesta);
+            }
+
             while (true) {
                 DataInputStream dataInput = new DataInputStream(socket.getInputStream());
 
                 try {
                     String message = dataInput.readUTF();
                     System.out.println("Mensaje recibido del servidor: " + message);
+                    if (message.equals("Partida Comenzada")) {
+                        partidaComenzada = true;
+                        System.out.println("¡La partida ha comenzado!");
+
+                    }
                     if (message.equals("Conexión exitosa")) {
                         // Manejar mensaje de conexión exitosa
                         System.out.println("¡Conexión con el servidor establecida con éxito!");
