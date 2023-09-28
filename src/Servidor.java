@@ -6,26 +6,34 @@ import java.net.Socket;
 import java.util.*;
 import java.awt.Color;
 import java.util.LinkedList;
+import processing.core.PApplet;
+import java.io.IOException;
+import java.net.SocketException;
+import org.json.JSONObject;
+import javax.swing.JOptionPane;
 
-
-public class Servidor {
+public class Servidor extends PApplet {
     // Variables de estado del juego
     int dotSize = 5;
-    int rows = 10; // Number of rows
-    int cols = 10; // Number of columns
+    int rows; // Number of rows
+    int cols; // Number of columns
     private Dot firstDot;
     private Dot currentDot;
-    private String errorMsg;
     LinkedListCustom<Dot> dots;
     LinkedListCustom<Line> lines;
     LinkedListCustom<Square> squares = new LinkedListCustom<Square>();
+    LinkedListCustom<Dot> selectedDots = new LinkedListCustom<Dot>();
+    String errorMsg = "";
+    private Queue<Player> playerQueue = new Queue<>();
+    long elapsedTime = 0;
+    boolean gameStarted = false;
     DataInputStream out;
     private final ArrayList<Color> colors = new ArrayList<>(
             List.of(Color.RED, Color.BLUE, Color.GREEN, Color.YELLOW, Color.CYAN));
     private int nextColorIndex = 0;
-    private LinkedList<Color> coloresDisponibles  = new LinkedList<Color>();
+    private LinkedList<Color> coloresDisponibles = new LinkedList<Color>();
 
- // Definición de la clase Nodo para la cola
+    // Definición de la clase Nodo para la cola
     private static class Node<T> {
         T value;
         Node<T> next;
@@ -35,6 +43,7 @@ public class Servidor {
             this.next = null;
         }
     }
+
     // Definición de la clase Cola
     private static class Queue<T> {
         Node<T> front, rear;
@@ -62,6 +71,11 @@ public class Servidor {
             }
             return temp.value;
         }
+        // Método para verificar si la cola está vacía.
+        boolean isEmpty() {
+            return front == null;
+        }
+
     }
 
     static class LinkedListCustom<T> implements Iterable<T> {
@@ -119,15 +133,97 @@ public class Servidor {
             };
         }
     }
+    public void settings() {
+    // Solicitar al usuario que ingrese el número de filas y columnas, separados por coma (,):
+    String input;
+    int minSize = 5; // Tamaño mínimo permitido
+
+    do {
+        input = JOptionPane.showInputDialog(null, "Ingrese el número de filas y columnas, separados por coma (,):");
+
+        // Verificar si el usuario presionó cancelar
+        if (input == null) {
+            System.out.println("El usuario canceló la operación.");
+            exit(); // Finalizar la ejecución de la aplicación
+            return;
+        }
+
+        // Dividir la cadena de entrada para obtener rows y cols
+        String[] parts = input.split(",");
+        if (parts.length != 2) {
+            JOptionPane.showMessageDialog(null, "Entrada no válida. Debe ingresar dos números separados por coma.");
+        } else {
+            // Convertir las cadenas a números
+            try {
+                rows = Integer.parseInt(parts[0].trim());
+                cols = Integer.parseInt(parts[1].trim());
+
+                // Verificar si rows y cols son iguales o mayores que minSize
+                if (rows < minSize || cols < minSize) {
+                    JOptionPane.showMessageDialog(null, "El número de filas y columnas debe ser igual o mayor que " + minSize + ".");
+                } else {
+                    // Tamaño válido, salir del bucle
+                    break;
+                }
+            } catch (NumberFormatException e) {
+                JOptionPane.showMessageDialog(null, "Entrada no válida. Debe ingresar números enteros.");
+            }
+        }
+    } while (true);
+
+    int windowSizeX = convertRowToX(rows) - 10; // Ajustar según sea necesario
+    int windowSizeY = convertColToY(cols) - 10; // Ajustar según sea necesario
+
+    size(windowSizeX, windowSizeY);
+
+    dots = new LinkedListCustom<>();
+    lines = new LinkedListCustom<>();
+    generateDots();
+}
 
 
+    public void setup() {
+        System.out.println("Configurando setup y arrancando servidor");
+        new Thread(this::startServer).start();
+    }
 
+    public void draw() {
+        background(255);
+        for (Square sq : squares) {
+            sq.display();
+        }
 
+        // Display the lines
+        for (Line line : lines) {
+            line.display();
+        }
 
+        // Display the dots
+        for (Dot dot : dots) {
+            dot.display();
+        }
+        fill(150);
+        // Verificar si errorMsg es diferente de null y mostrarlo en la ventana
+        if (errorMsg == null) {
+            fill(150);
+//            text(errorMsg, 20, 90);
+        }
+    }
 
+    static int convertRowToX(int row) {
+        int spacingX = 40; // Distancia entre los puntos en el eje x
+        int marginLeft = 20; // Margen inicial en el eje x
+        return marginLeft + row * spacingX;
+    }
+
+    static int convertColToY(int col) {
+        int spacingY = 40; // Distancia entre los puntos en el eje y
+        int marginTop = 20; // Margen inicial en el eje y
+        return marginTop + col * spacingY;
+    }
 
     //Clases internas
-    private static class Dot {
+    private class Dot {
         int row, col;
 
         Dot(int row, int col) {
@@ -138,9 +234,21 @@ public class Servidor {
         String getIdentifier() {
             return Integer.toString(row) + Integer.toString(col);
         }
+
+        void display() {
+            noStroke();
+            int x = Servidor.convertRowToX(row);
+            int y = Servidor.convertColToY(col);
+
+            fill(100, 100, 100);
+
+
+            int radius = 5; // Puedes ajustar el valor del radio aquí
+            ellipse(x, y, radius * 2, radius * 2);
+        }
     }
 
-    private static class Line {
+    private class Line {
         Dot dot1, dot2;
         int lineColor = 0;
 
@@ -150,12 +258,21 @@ public class Servidor {
             this.lineColor = 0;
         }
 
+        void display() {
+            stroke(lineColor);
+            int x1 = Servidor.convertRowToX(dot1.row);
+            int y1 = Servidor.convertColToY(dot1.col);
+            int x2 = Servidor.convertRowToX(dot2.row);
+            int y2 = Servidor.convertColToY(dot2.col);
+            line(x1, y1, x2, y2);
+        }
+
         String getUniqueRepresentation() {
             return dot1.getIdentifier() + "-" + dot2.getIdentifier();
         }
     }
 
-    private static class Square {
+    private class Square {
         Dot topLeft;
         Dot bottomRight;
         int size;
@@ -175,19 +292,46 @@ public class Servidor {
         void setColor(int playerColor) {
             this.color = playerColor;
         }
+
+        void display() {
+            if (color != -1) {
+                fill(color);
+                int x = Servidor.convertRowToX(topLeft.row);
+                int y = Servidor.convertColToY(topLeft.col);
+                rect(x, y, size, size);
+            }
+        }
     }
 
+    public class Player {
+        private Color color;
+        private Socket socket;
 
+        public Player(Color color, Socket socket) {
+            this.color = color;
+            this.socket = socket;
+        }
+
+        public Color getColor() {
+            return color;
+        }
+
+        public Socket getSocket() {
+            return socket;
+        }
+    }
 
 
     //Metodos de inicializacion
     public void generateDots() {
-    for (int i = 0; i < rows; i++) {
-        for (int j = 0; j < cols; j++) {
-            dots.add(new Dot(i, j)); // Sólo pasamos la fila y la columna al constructor de Dot
+        System.out.println("Generando puntos...");
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < cols; j++) {
+                System.out.println("Generando punto en fila " + i + " y columna " + j);
+                dots.add(new Dot(i, j));
+            }
         }
     }
-}
 
 
     //Metodos de logica del juego
@@ -208,12 +352,14 @@ public class Servidor {
         }
         return null;
     }
+
     private boolean doesSquareExist(Dot topLeft, Dot bottomRight) {
         Dot topRight = getDotAtRowCol(topLeft.row, bottomRight.col);
         Dot bottomLeft = getDotAtRowCol(bottomRight.row, topLeft.col);
 
         return lineExists(topLeft, topRight) && lineExists(topLeft, bottomLeft) && lineExists(bottomRight, bottomLeft) && lineExists(bottomRight, topRight);
     }
+
     public LinkedListCustom<Square> getCompletedSquares(Line line) {
         LinkedListCustom<Square> completedSquares = new LinkedListCustom<>();
 
@@ -244,12 +390,11 @@ public class Servidor {
     }
 
 
-
     private boolean checkSquareAbove(Dot left, Dot right) {
         Dot topLeft = getDotAtRowCol(left.row - 1, left.col);
         Dot topRight = getDotAtRowCol(right.row - 1, right.col);
 
-        if(topLeft == null || topRight == null) return false;
+        if (topLeft == null || topRight == null) return false;
 
         return lineExists(topLeft, left) && lineExists(topRight, right) && lineExists(topLeft, topRight);
     }
@@ -258,7 +403,7 @@ public class Servidor {
         Dot bottomLeft = getDotAtRowCol(left.row + 1, left.col);
         Dot bottomRight = getDotAtRowCol(right.row + 1, right.col);
 
-        if(bottomLeft == null || bottomRight == null) return false;
+        if (bottomLeft == null || bottomRight == null) return false;
 
         return lineExists(bottomLeft, left) && lineExists(bottomRight, right) && lineExists(bottomLeft, bottomRight);
     }
@@ -267,7 +412,7 @@ public class Servidor {
         Dot topLeft = getDotAtRowCol(top.row, top.col - 1);
         Dot bottomLeft = getDotAtRowCol(bottom.row, bottom.col - 1);
 
-        if(topLeft == null || bottomLeft == null) return false;
+        if (topLeft == null || bottomLeft == null) return false;
 
         return lineExists(top, topLeft) && lineExists(bottom, bottomLeft) && lineExists(topLeft, bottomLeft);
     }
@@ -276,16 +421,18 @@ public class Servidor {
         Dot topRight = getDotAtRowCol(top.row, top.col + 1);
         Dot bottomRight = getDotAtRowCol(bottom.row, bottom.col + 1);
 
-        if(topRight == null || bottomRight == null) return false;
+        if (topRight == null || bottomRight == null) return false;
 
         return lineExists(top, topRight) && lineExists(bottom, bottomRight) && lineExists(topRight, bottomRight);
     }
+
     boolean areAdjacentDots(Dot dot1, Dot dot2) {
         int dRow = Math.abs(dot1.row - dot2.row);
         int dCol = Math.abs(dot1.col - dot2.col);
 
         return ((dRow == 1 && dCol == 0) || (dRow == 0 && dCol == 1));
     }
+
     boolean isLineExists(Dot d1, Dot d2) {
         for (Line line : lines) {
             if ((line.dot1 == d1 && line.dot2 == d2) || (line.dot1 == d2 && line.dot2 == d1)) {
@@ -294,6 +441,7 @@ public class Servidor {
         }
         return false;
     }
+
     Dot getDotAt(int x, int y) {
         for (Dot dot : dots) {
             if (Math.abs(dot.row - x) < 1 && Math.abs(dot.col - y) < 1) {
@@ -302,6 +450,7 @@ public class Servidor {
         }
         return null;
     }
+
     private Square getSquareAbove(Dot d1, Dot d2) {
         if (d1.row != d2.row) {
             return null; // Not a horizontal line
@@ -321,6 +470,7 @@ public class Servidor {
         }
         return null;
     }
+
     private Square getSquareBelow(Dot d1, Dot d2) {
         if (d1.row != d2.row) {
             return null; // Not a horizontal line
@@ -340,6 +490,7 @@ public class Servidor {
         }
         return null;
     }
+
     private Square getSquareLeft(Dot d1, Dot d2) {
         if (d1.col != d2.col) {
             return null; // Not a vertical line
@@ -359,6 +510,7 @@ public class Servidor {
         }
         return null;
     }
+
     private Square getSquareRight(Dot d1, Dot d2) {
         if (d1.col != d2.col) {
             return null; // Not a vertical line
@@ -379,100 +531,156 @@ public class Servidor {
         return null;
     }
 
-    // Comunicaciones
-    public void handleClientAction(String action) {
-    // Parsear la acción recibida (posiblemente en formato JSON)
+    //    // Comunicaciones
+//    public void handleClientAction(String action) {
+//    // Parsear la acción recibida (posiblemente en formato JSON)
+//
+//    // Realizar los cálculos y verificaciones de la lógica del juego
+//    if (firstDot == null) {
+//        firstDot = currentDot;
+////        firstDot.isSelected = true;
+//    } else {
+//        if (areAdjacentDots(firstDot, currentDot) && !lineExists(firstDot, currentDot)) {
+//            Line newLine = new Line(firstDot, currentDot);
+//            lines.add(newLine);
+//            LinkedListCustom<Square> completedSquares = getCompletedSquares(newLine);
+//
+//            // ... (Resto de la lógica del juego)
+//
+//            // Enviar el estado actualizado del juego a todos los clientes conectados
+//            sendUpdatedGameStateToClients();
+//        } else {
+//            errorMsg = "Selecciona puntos adyacentes o puntos entre los que no exista una línea!";
+////            firstDot.isSelected = false;
+//            firstDot = null;
+//        }
+//    }
+//}
+//
+//public void sendUpdatedGameStateToClients() {
+//    // Enviar el estado actualizado del juego a todos los clientes conectados.
+//}
 
-    // Realizar los cálculos y verificaciones de la lógica del juego
-    if (firstDot == null) {
-        firstDot = currentDot;
-//        firstDot.isSelected = true;
-    } else {
-        if (areAdjacentDots(firstDot, currentDot) && !lineExists(firstDot, currentDot)) {
-            Line newLine = new Line(firstDot, currentDot);
-            lines.add(newLine);
-            LinkedListCustom<Square> completedSquares = getCompletedSquares(newLine);
+     // Función para asignar colores a los clientes en orden
+    private Color getNextPlayerColor() {
+        if (coloresDisponibles.isEmpty()) {
+            // Si se agotaron los colores disponibles, reiniciar la lista de colores
+            coloresDisponibles.addAll(colors);
+        }
+        Color playerColor = coloresDisponibles.poll(); // Obtener el siguiente color disponible
+        return playerColor;
+    }
+    class ClientHandler implements Runnable {
+        private Socket clientSocket;
 
-            // ... (Resto de la lógica del juego)
+        public ClientHandler(Socket socket) {
+            this.clientSocket = socket;
+        }
 
-            // Enviar el estado actualizado del juego a todos los clientes conectados
-            sendUpdatedGameStateToClients();
-        } else {
-            errorMsg = "Selecciona puntos adyacentes o puntos entre los que no exista una línea!";
-//            firstDot.isSelected = false;
-            firstDot = null;
+        @Override
+        public void run() {
+            try {
+                DataInputStream in = new DataInputStream(clientSocket.getInputStream());
+
+                // Aquí va el código de aceptación de la conexión
+
+                long currentTime = System.currentTimeMillis();
+                if (!gameStarted) {
+                    if (playerQueue.isEmpty()) {
+                        // Si es el primer cliente, establecer el tiempo de inicio
+                        elapsedTime = currentTime;
+                    } else if (currentTime - elapsedTime >= 30000) {
+                        // Si ha pasado más de 30 segundos, habilitar la partida
+                        gameStarted = true;
+                        System.out.println("La partida ha comenzado.");
+                    }
+                }
+
+                // Asignar colores a los clientes en el orden en que se conectan
+                if (!gameStarted) {
+                    Color playerColor = getNextPlayerColor();
+                    Player player = new Player(playerColor, clientSocket);
+                    playerQueue.enqueue(player);
+                    System.out.println("Cliente conectado. Color asignado: " + playerColor);
+                } else {
+                    // El juego ha comenzado, los nuevos clientes quedan en espera.
+                    // Puedes agregar un mensaje o lógica adicional aquí si lo necesitas.
+                    System.out.println("La partida ha comenzado. Cliente en espera.");
+                }
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
-}
-
-public void sendUpdatedGameStateToClients() {
-    // Enviar el estado actualizado del juego a todos los clientes conectados.
-}
-
-
-
-
-
 
 
 
     public void startServer() {
-        // Agregar colores disponibles
-        coloresDisponibles.add(Color.RED);
-        coloresDisponibles.add(Color.GREEN);
-        coloresDisponibles.add(Color.BLUE);
+        System.out.println("Iniciando servidor...");
+        generateDots();
 
         LinkedList<Integer> lista_puertos = new LinkedList<Integer>();
-
-        try {
-            ServerSocket server = new ServerSocket(5000);
-
+        try (ServerSocket server = new ServerSocket(5000)) {
             while (true) {
-                Socket serverSocket = server.accept();
-                System.out.println("Cliente conectado: " + serverSocket.getRemoteSocketAddress());
+                try {
+                    Socket clientSocket = server.accept();
+                    System.out.println("Cliente conectado: " + clientSocket.getRemoteSocketAddress());
 
-                if (nextColorIndex < coloresDisponibles.size()) {
-                    Color assignedColor = coloresDisponibles.get(nextColorIndex++);
-                    // Envía el color asignado al cliente.
-                    // Puedes convertir el color a un string o a un formato que prefieras.
-                    DataOutputStream out = new DataOutputStream(serverSocket.getOutputStream());
-                    out.writeUTF(assignedColor.toString());
-                } else {
-                    // Todos los colores han sido asignados, manejar según sea necesario
-                }
+                    // Crear DataOutputStream para enviar mensajes al cliente
+                    DataOutputStream out = new DataOutputStream(clientSocket.getOutputStream());
 
-                try (DataInputStream datos = new DataInputStream(serverSocket.getInputStream())) {
+                    // Crear un JSONObject para enviar la información de la malla al cliente
+                    JSONObject mallaInfo = new JSONObject();
+                    mallaInfo.put("rows", rows);
+                    mallaInfo.put("cols", cols);
+
+                    // Enviar la información de la malla al cliente
+                    out.writeUTF(mallaInfo.toString());
+
+                    // Enviar mensaje informativo "Conexión exitosa" al cliente
+                    out.writeUTF("INFO:Conexión exitosa");
+
+                    // Iniciar hilo para manejar al cliente
+                    Thread clientThread = new Thread(new ClientHandler(clientSocket));
+                    clientThread.start();
+
+                    DataInputStream datos = new DataInputStream(clientSocket.getInputStream());
                     String mensajes = datos.readUTF();
                     System.out.println("Mensaje recibido: " + mensajes);
-
                     if (!mensajes.isEmpty() && Objects.equals(String.valueOf(mensajes.charAt(0)), "0")) {
                         mensajes = mensajes.substring(1, mensajes.length());
                         int puerto_final = Integer.parseInt(mensajes);
                         lista_puertos.add(puerto_final);
                         System.out.println("Conectado: " + puerto_final);
                     } else {
-                        // Parsear el mensaje JSON y realizar las operaciones necesarias
                         System.out.println(mensajes);
 
                         for (Integer puerto : lista_puertos) {
-                            Socket mensajepuertos = new Socket("127.0.0.1", puerto);
-                            DataOutputStream puertoOut = new DataOutputStream(mensajepuertos.getOutputStream());
-                            puertoOut.writeUTF(mensajes);
-                            mensajepuertos.close();
+                            try (Socket mensajepuertos = new Socket("127.0.0.1", puerto)) {
+                                DataOutputStream puertoOut = new DataOutputStream(mensajepuertos.getOutputStream());
+                                puertoOut.writeUTF(mensajes);
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
                         }
                     }
-                } catch (EOFException e) {
-                    System.out.println("Se ha alcanzado el final del flujo de datos");
-                } finally {
-                    serverSocket.close();
+
+
+
+                } catch (SocketException se) {
+                    System.err.println("Socket was closed: " + se.getMessage());
+                } catch (IOException e) {
+                    e.printStackTrace();
                 }
             }
-        } catch (Exception e) {
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
+
     public static void main(String[] args) {
-        new Servidor().startServer();
+        PApplet.main("Servidor");
     }
 }

@@ -18,6 +18,9 @@ import java.util.HashSet;
 import org.json.JSONObject;
 import org.json.JSONArray;
 import javax.swing.JOptionPane;
+import java.io.EOFException;
+
+
 
 public class Cliente extends PApplet implements Runnable {
 
@@ -53,6 +56,21 @@ public class Cliente extends PApplet implements Runnable {
                 current.next = new Node<>(value);
             }
             size++;
+        }
+        void remove(int index) {
+            if (index < 0 || index >= size) {
+                throw new IndexOutOfBoundsException("Index out of bounds");
+            }
+            if (index == 0) {
+                head = head.next;
+            } else {
+                Node<T> current = head;
+                for (int i = 0; i < index - 1; i++) {
+                    current = current.next;
+                }
+                current.next = current.next.next;
+            }
+            size--;
         }
 
         T get(int index) {
@@ -117,6 +135,8 @@ public class Cliente extends PApplet implements Runnable {
     String errorMsg = "";
     int player1Score = 0;
     int player2Score = 0;
+    long errorDisplayStartTime = 0; // Tiempo de inicio de la visualización del mensaje de error
+    int errorDisplayDuration = 2000; // Duración del mensaje de error en milisegundos (2 segundos)
 
 
     Dot firstDot = null;
@@ -125,12 +145,17 @@ public class Cliente extends PApplet implements Runnable {
     DataInputStream in;
 
     public Cliente() {
-        this.rows = 10;
-        this.cols = 10;
         try {
             this.socket = new Socket("127.0.0.1", 5000);
             this.out = new DataOutputStream(socket.getOutputStream());
-            this.in = new DataInputStream(socket.getInputStream()); // Añadido aquí
+            this.in = new DataInputStream(socket.getInputStream());
+            System.out.println("Cliente conectado con el socket: " + socket);
+
+            // Recibir las dimensiones del servidor
+            String dimensionsMessage = in.readUTF();
+            JSONObject dimensions = new JSONObject(dimensionsMessage);
+            this.rows = dimensions.getInt("rows");
+            this.cols = dimensions.getInt("cols");
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -140,8 +165,12 @@ public class Cliente extends PApplet implements Runnable {
     }
 
 
+
     public void settings() {
-        size(400, 400);
+        int windowSizeX = convertRowToX(rows) - 10; // Ajustar según sea necesario
+        int windowSizeY = convertColToY(cols) - 10; // Ajustar según sea necesario
+        size(windowSizeX, windowSizeY);
+
         dots = new LinkedListCustom<Dot>();
         lines = new LinkedListCustom<Line>();
         generateDots();
@@ -165,17 +194,16 @@ public class Cliente extends PApplet implements Runnable {
 
         }
 
-        // Display the
-        // dots
+        // Display the dots
         for (Dot dot : dots) {
             dot.display();
         }
-        fill(255, 0, 0);
-        text(errorMsg, 20, 90);
+        // Display the error message
+        if (millis() - errorDisplayStartTime < errorDisplayDuration) {
+            fill(255, 0, 0);
+            text(errorMsg, 20, height - 20); // Dibuja el mensaje de error
+        }
     }
-
-    ;
-
 
     public void generateDots() {
         for (int i = 0; i < rows; i++) {
@@ -195,23 +223,47 @@ public class Cliente extends PApplet implements Runnable {
             selectedRow = min(rows - 1, selectedRow + 1);
         } else if (key == 'S' || key == 's') {
             selectedCol = min(cols - 1, selectedCol + 1);
-        } else  if (key == 'L' || key == 'l') {
+        } else if (key == 'L' || key == 'l') {
             Dot currentDot = getDotAtRowCol(selectedRow, selectedCol);
-            currentDot.setSelected(true);
-            selectedDots.add(currentDot);
+            if (currentDot != null) {
+                if (selectedDots.size() == 1) {
+                    // Desmarcar el primer punto seleccionado
+                    Dot firstSelectedDot = selectedDots.get(0);
+                    firstSelectedDot.setSelected(false);
+                }
+                // Marcar el punto actual y añadirlo a la lista de puntos seleccionados
+                currentDot.setSelected(true);
+                selectedDots.add(currentDot);
+            }
 
-            if (selectedDots.size() == 1) {
-                // Imprime un mensaje cuando el primer punto es seleccionado
-                System.out.println("Primer punto seleccionado");
-            } else if (selectedDots.size() == 2) {
-                // Dibuja una línea cuando el segundo punto es seleccionado
-                Line newLine = new Line(selectedDots.get(0), selectedDots.get(1));
-                lines.add(newLine);
-                // Vacía la lista de puntos seleccionados para la próxima línea
-                selectedDots = new LinkedListCustom<Dot>();
+            if (selectedDots.size() == 2) {
+                Dot dot1 = selectedDots.get(0);
+                Dot dot2 = selectedDots.get(1);
+                boolean areAdjacent = (Math.abs(dot1.row - dot2.row) == 1 && dot1.col == dot2.col) ||
+                        (Math.abs(dot1.col - dot2.col) == 1 && dot1.row == dot2.row);
+
+                if (areAdjacent) {
+                    // Dibuja una línea y vacía la lista de puntos seleccionados
+                    Line newLine = new Line(dot1, dot2);
+                    lines.add(newLine);
+                    selectedDots.get(0).setSelected(false); // Desmarcar el primer punto
+                    selectedDots.get(1).setSelected(false); // Desmarcar el segundo punto
+                    selectedDots = new LinkedListCustom<Dot>();
+                } else {
+                    // Manejar el caso cuando los puntos no son adyacentes
+                    errorMsg = "Los puntos seleccionados no son adyacentes";
+                    errorDisplayStartTime = millis(); // Establece el tiempo de inicio actual
+
+                    // Desmarcar ambos puntos seleccionados
+                    dot1.setSelected(false);
+                    dot2.setSelected(false);
+                    selectedDots = new LinkedListCustom<Dot>();
+                }
             }
         }
     }
+
+
 
     // Comunicacion al servidor
 
@@ -606,43 +658,59 @@ public class Cliente extends PApplet implements Runnable {
 
     public void run() {
         try {
-            ServerSocket server = new ServerSocket(0);
-            Socket socket = new Socket("127.0.0.1", 5000);
-
-            String puerto_codificado = String.valueOf(server.getLocalPort());
-
             DataOutputStream out = new DataOutputStream(socket.getOutputStream());
-            out.writeUTF(puerto_codificado);
+            out.writeUTF("0" + socket.getLocalPort()); // Añadimos "0" como prefijo para indicar el tipo de mensaje
+                // Solicitar la información de la partida al servidor
+            out.writeUTF("SOLICITAR_INFORMACION_PARTIDA");
 
+            // Leer la respuesta del servidor
+            String respuesta = in.readUTF();
+            System.out.println("Información de la partida recibida: " + respuesta);
+
+            // Parsear la respuesta JSON para obtener las dimensiones de la malla
+            JSONObject partidaInfo = new JSONObject(respuesta);
+            rows = partidaInfo.getInt("rows");
+            cols = partidaInfo.getInt("cols");
+
+            // Generar los puntos de acuerdo a las dimensiones recibidas
+            generateDots();
             while (true) {
-                Socket serverSocket = server.accept();
-                DataInputStream dataInput = new DataInputStream(serverSocket.getInputStream());
+                DataInputStream dataInput = new DataInputStream(socket.getInputStream());
 
-                String message = dataInput.readUTF();
-                System.out.println("Mensaje recibido del servidor: " + message);
+                try {
+                    String message = dataInput.readUTF();
+                    System.out.println("Mensaje recibido del servidor: " + message);
+                    if (message.equals("Conexión exitosa")) {
+                        // Manejar mensaje de conexión exitosa
+                        System.out.println("¡Conexión con el servidor establecida con éxito!");
+                    } else {
+                        /*
+                        try {
+                            // Intentar parsear el mensaje como JSON
+                            JSONArray jsonLines = new JSONArray(message);
 
-                // Parsear el mensaje JSON recibido
-                JSONArray jsonLines = new JSONArray(message);
-
-                // Iterar sobre las líneas JSON y agregarlas a la lista local de líneas
-                for (int i = 0; i < jsonLines.length(); i++) {
-                    JSONObject jsonLine = jsonLines.getJSONObject(i);
-
-                    // Convertir JSON a Line y agregar a la lista de líneas
-                    Line newLine = jsonLineToLine(jsonLine);
-                    lines.add(newLine);
-
-                    // Verificar si la nueva línea cierra un cuadrado y actualizar la interfaz y la puntuación
-                    LinkedListCustom<Square> completedSquares = getCompletedSquares(newLine);
-                    for (Square sq : completedSquares) {
-                        squares.add(sq);
-                        sq.setColor((currentPlayer == 1) ? player1Color : player1Color);
-                        if (currentPlayer == 1) {
-                            player1Score++;
-                        } else {
-                            player2Score++;
+                            // Mover el código de procesamiento de JSON aquí
+                            for (int i = 0; i < jsonLines.length(); i++) {
+                                JSONObject jsonLine = jsonLines.getJSONObject(i);
+                                // Convertir JSON a Line y agregar a la lista de líneas
+                                Line newLine = jsonLineToLine(jsonLine);
+                                lines.add(newLine);
+                                // Verificar si la nueva línea cierra un cuadrado y actualizar la interfaz y la puntuación
+                                LinkedListCustom<Square> completedSquares = getCompletedSquares(newLine);
+                                for (Square sq : completedSquares) {
+                                    squares.add(sq);
+                                    sq.setColor(player1Color);
+                                    player1Score++;
+                                }
+                            }
+                        } catch (JSONException e) {
+                            System.err.println("Error al parsear mensaje JSON: " + e.getMessage());
                         }
+                        */
                     }
+                } catch (EOFException e) {
+                    System.err.println("Se ha alcanzado el final del stream mientras se leía. ¿El servidor cerró la conexión?");
+                    break; // Salir del bucle ya que no podemos leer más datos
                 }
             }
         } catch (Exception e) {
@@ -652,23 +720,26 @@ public class Cliente extends PApplet implements Runnable {
 
 
     public static void main(String args[]) {
-        Inicio  inicio = new Inicio();
-            while(inicio.numero ==0){
-                try {
-                    TimeUnit.SECONDS.sleep(1);
+        System.out.println("Iniciando una nueva instancia de Cliente");
+
+        Inicio inicio = new Inicio();
+        while (inicio.numero == 0) {
+            try {
+                TimeUnit.SECONDS.sleep(1);
                 System.out.println("1");
-                } catch (Exception e){
-                    e.printStackTrace();
-                    System.exit(0);
-                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                System.exit(0);
             }
-            java.awt.EventQueue.invokeLater(new Runnable() {
-                public void run() {
-                    PApplet.main("Cliente");
-                }
-            });
         }
+        java.awt.EventQueue.invokeLater(new Runnable() {
+            public void run() {
+                PApplet.main("Cliente");
+            }
+        });
     }
+    }
+
 
 
 
