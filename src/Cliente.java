@@ -289,12 +289,10 @@ public class Cliente extends PApplet implements Runnable {
         // Crear un objeto JSON para la línea
         String jsonLineString = lineToJson(line); // Suponiendo que lineToJson retorna un String
         JSONObject jsonLine = new JSONObject(jsonLineString);
-
-
-        // Crear un objeto JSON principal que incluirá la información del jugador y la línea
         JSONObject mainJson = new JSONObject();
-        mainJson.put("Jugador", String.valueOf(socket.getLocalPort())); // Añadir el puerto del socket como identificador del jugador
-        mainJson.put("Line", jsonLine); // Añadir el objeto JSON de la línea
+        mainJson.put("tipo", "nuevaLinea");
+        mainJson.put("Jugador", String.valueOf(socket.getLocalPort()));
+        mainJson.put("Line", jsonLine);
 
         // Enviar el objeto JSON principal al servidor
         try {
@@ -448,6 +446,7 @@ public class Cliente extends PApplet implements Runnable {
         try {
             // Enviar solicitud al servidor para obtener el estado del juego
             JSONObject request = new JSONObject();
+            request.put("tipo", "solicitarEstado");
             request.put("action", "pull");
             out.writeUTF(request.toString());
 
@@ -712,9 +711,18 @@ public class Cliente extends PApplet implements Runnable {
     public void run() {
         try {
             DataOutputStream out = new DataOutputStream(socket.getOutputStream());
-            out.writeUTF("0" + socket.getLocalPort()); // Añadimos "0" como prefijo para indicar el tipo de mensaje
-                // Solicitar la información de la partida al servidor
-            out.writeUTF("SOLICITAR_INFORMACION_PARTIDA");
+
+            // Enviar el número de puerto en un objeto JSON
+            JSONObject puertoJson = new JSONObject();
+            puertoJson.put("tipo", "puerto");
+            puertoJson.put("puerto", socket.getLocalPort());
+            out.writeUTF(puertoJson.toString());
+
+            // Solicitar la información de la partida al servidor
+            JSONObject solicitudJson = new JSONObject();
+            solicitudJson.put("tipo", "solicitud");
+            solicitudJson.put("accion", "SOLICITAR_INFORMACION_PARTIDA");
+            out.writeUTF(solicitudJson.toString());
 
             // Leer la respuesta del servidor
             String respuesta = in.readUTF();
@@ -742,38 +750,20 @@ public class Cliente extends PApplet implements Runnable {
                 try {
                     String message = dataInput.readUTF();
                     System.out.println("Mensaje recibido del servidor: " + message);
-                    if (message.equals("Partida Comenzada")) {
-                        partidaComenzada = true;
-                        System.out.println("¡La partida ha comenzado!");
 
-                    }
-                    if (message.equals("Conexión exitosa")) {
-                        // Manejar mensaje de conexión exitosa
-                        System.out.println("¡Conexión con el servidor establecida con éxito!");
-                    } else {
-                        /*
-                        try {
-                            // Intentar parsear el mensaje como JSON
-                            JSONArray jsonLines = new JSONArray(message);
-
-                            // Mover el código de procesamiento de JSON aquí
-                            for (int i = 0; i < jsonLines.length(); i++) {
-                                JSONObject jsonLine = jsonLines.getJSONObject(i);
-                                // Convertir JSON a Line y agregar a la lista de líneas
-                                Line newLine = jsonLineToLine(jsonLine);
-                                lines.add(newLine);
-                                // Verificar si la nueva línea cierra un cuadrado y actualizar la interfaz y la puntuación
-                                LinkedListCustom<Square> completedSquares = getCompletedSquares(newLine);
-                                for (Square sq : completedSquares) {
-                                    squares.add(sq);
-                                    sq.setColor(player1Color);
-                                    player1Score++;
-                                }
-                            }
-                        } catch (JSONException e) {
-                            System.err.println("Error al parsear mensaje JSON: " + e.getMessage());
-                        }
-                        */
+                    JSONObject mensajeJson = new JSONObject(message);
+                    String tipo = mensajeJson.getString("tipo");
+                    switch (tipo) {
+                        case "info":
+                            System.out.println("¡Conexión con el servidor establecida con éxito!");
+                            break;
+                        case "inicioPartida":
+                            partidaComenzada = true;
+                            System.out.println("¡La partida ha comenzado!");
+                            break;
+                        // Añadir más casos según sea necesario
+                        default:
+                            System.err.println("Tipo de mensaje desconocido: " + tipo);
                     }
                 } catch (EOFException e) {
                     System.err.println("Se ha alcanzado el final del stream mientras se leía. ¿El servidor cerró la conexión?");
@@ -784,6 +774,7 @@ public class Cliente extends PApplet implements Runnable {
             e.printStackTrace();
         }
     }
+
 
 
     public static void main(String args[]) {
