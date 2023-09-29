@@ -17,6 +17,13 @@ import java.io.IOException; // Importar IOException
 
 public class Servidor {
 
+
+
+
+
+
+
+
     public void startServer() {
         LinkedList<Integer> lista_puertos = new LinkedList<Integer>();
 
@@ -34,19 +41,12 @@ public class Servidor {
                     lista_puertos.add(puerto_final);
                     System.out.println("Conectado: " + puerto_final);
                 } else {
+                    System.out.println(mensajes);
                     Socket mensajepuertos = null;
 
                     // Parsear el mensaje JSON y imprimirlo de forma legible
-                    JSONTokener tokener = new JSONTokener(mensajes);
-                    Object json = tokener.nextValue();
-                    if (json instanceof JSONObject) {
-                        System.out.println(((JSONObject) json).toString(4)); // 4 es el número de espacios para la indentación
-                    } else if (json instanceof JSONArray) {
-                        System.out.println(((JSONArray) json).toString(4)); // 4 es el número de espacios para la indentación
-                    } else {
-                        // No es un JSON válido
-                        System.out.println(mensajes);
-                    }
+
+
 
                     for (int i = 0; i < lista_puertos.size(); i++) {
                         mensajepuertos = new Socket("127.0.0.1", lista_puertos.get(i));
