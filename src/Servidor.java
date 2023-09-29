@@ -11,6 +11,8 @@ import java.io.IOException;
 import java.net.SocketException;
 import org.json.JSONObject;
 import javax.swing.JOptionPane;
+import org.json.JSONException;
+import java.net.ConnectException;
 
 public class Servidor extends PApplet {
     // Variables de estado del juego
@@ -304,7 +306,7 @@ public class Servidor extends PApplet {
     }
 
     public class Player {
-        private Color color;
+        private static Color color;
         private Socket socket;
 
         public Player(Color color, Socket socket) {
@@ -312,7 +314,7 @@ public class Servidor extends PApplet {
             this.socket = socket;
         }
 
-        public Color getColor() {
+        public static Color getColor() {
             return color;
         }
 
@@ -562,6 +564,27 @@ public class Servidor extends PApplet {
 //}
 
      // Función para asignar colores a los clientes en orden
+
+
+    private Line jsonLineToLine(JSONObject jsonLine) {
+        // Extraer los objetos JSON para dot1 y dot2
+        JSONObject jsonDot1 = jsonLine.getJSONObject("dot1");
+        JSONObject jsonDot2 = jsonLine.getJSONObject("dot2");
+
+        // Extraer las coordenadas row y col de dot1 y dot2
+        int row1 = jsonDot1.getInt("row");
+        int col1 = jsonDot1.getInt("col");
+        int row2 = jsonDot2.getInt("row");
+        int col2 = jsonDot2.getInt("col");
+
+        // Obtener los objetos Dot correspondientes a las coordenadas
+        Dot dot1 = getDotAtRowCol(row1, col1);
+        Dot dot2 = getDotAtRowCol(row2, col2);
+
+        // Crear y retornar un nuevo objeto Line con los puntos dot1 y dot2
+        return new Line(dot1, dot2);
+    }
+
     private Color getNextPlayerColor() {
         if (coloresDisponibles.isEmpty()) {
             // Si se agotaron los colores disponibles, reiniciar la lista de colores
@@ -577,7 +600,7 @@ public class Servidor extends PApplet {
             try {
                 while (true) {
                     long currentTime = System.currentTimeMillis();
-                    long timeLeft = 10000 - (currentTime - elapsedTime);
+                    long timeLeft = 15000 - (currentTime - elapsedTime);
 
                     if (!gameStarted && timeLeft <= 0) {
                         gameStarted = true;
@@ -612,7 +635,16 @@ public class Servidor extends PApplet {
         public void run() {
             try {
                 DataInputStream in = new DataInputStream(clientSocket.getInputStream());
+                // Leer el JSON enviado por el cliente
+                String jsonStr = in.readUTF();
+                JSONObject json = new JSONObject(jsonStr);
+                //Obtener la línea
+                JSONObject jsonLine = json.getJSONObject("Line");
+                Line line = jsonLineToLine(jsonLine); // Aquí debes convertir el JSONObject a un objeto Line
 
+                // Añadir la línea a la lista de líneas y asignarle el color del jugador
+                line.lineColor = Player.getColor().getRGB();
+                lines.add(line);
                 // Asignar colores a los clientes en el orden en que se conectan
                 if (!gameStarted) {
                     Color playerColor = getNextPlayerColor();
@@ -630,7 +662,7 @@ public class Servidor extends PApplet {
     }
 
 
-    public void startServer() {
+   public void startServer() {
         System.out.println("Iniciando servidor...");
         generateDots();
 
@@ -665,30 +697,45 @@ public class Servidor extends PApplet {
                     clientThread.start();
 
                     DataInputStream datos = new DataInputStream(clientSocket.getInputStream());
+
                     String mensajes = datos.readUTF();
                     System.out.println("Mensaje recibido: " + mensajes);
-                    if (!mensajes.isEmpty() && Objects.equals(String.valueOf(mensajes.charAt(0)), "0")) {
-                        mensajes = mensajes.substring(1, mensajes.length());
-                        int puerto_final = Integer.parseInt(mensajes);
-                        lista_puertos.add(puerto_final);
-                        System.out.println("Conectado: " + puerto_final);
-                    } else {
-                        System.out.println(mensajes);
 
-                        for (Integer puerto : lista_puertos) {
-                            try (Socket mensajepuertos = new Socket("127.0.0.1", puerto)) {
-                                DataOutputStream puertoOut = new DataOutputStream(mensajepuertos.getOutputStream());
-                                puertoOut.writeUTF(mensajes);
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }
+                    // Verificar si el mensaje recibido es un objeto JSON válido
+                    if (mensajes.trim().startsWith("{")) {
+                        // Intentar convertir la cadena a JSONObject
+                        try {
+                            JSONObject jsonMessage = new JSONObject(mensajes);
+                            // Procesar el objeto JSON aquí
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
+                    } else {
+                        // Procesar los mensajes que no son objetos JSON aquí
+                        if (!mensajes.isEmpty() && mensajes.charAt(0) == '0') {
+                            mensajes = mensajes.substring(1);
+                            int puerto_final = Integer.parseInt(mensajes);
+                            lista_puertos.add(puerto_final);
+                            System.out.println("Conectado: " + puerto_final);
+                        } else {
+                            System.out.println(mensajes);
+                            // Enviar el mensaje a otros puertos aquí
                         }
                     }
 
-
-
-                } catch (SocketException se) {
-                    System.err.println("Socket was closed: " + se.getMessage());
+                    for (Integer puerto : lista_puertos) {
+                        try (Socket mensajepuertos = new Socket("127.0.0.1", puerto)) {
+                            // Código para manejar la conexión aquí
+                        } catch (ConnectException ce) {
+                            System.err.println("No se puede conectar al puerto: " + puerto + ". Verifique si el servicio está en ejecución.");
+                            ce.printStackTrace();
+                        } catch (SocketException se) {
+                            System.err.println("Socket was closed: " + se.getMessage());
+                            se.printStackTrace();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -696,9 +743,7 @@ public class Servidor extends PApplet {
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-
+   }
     public static void main(String[] args) {
         PApplet.main("Servidor");
     }

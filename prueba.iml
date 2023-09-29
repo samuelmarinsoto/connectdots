@@ -28,5 +28,6 @@
     <orderEntry type="library" name="core2" level="project" />
     <orderEntry type="library" name="jackson-core-2.12.5" level="project" />
     <orderEntry type="library" name="json-202306181" level="project" />
+    <orderEntry type="library" name="processing-samu" level="project" />
   </component>
 </module>

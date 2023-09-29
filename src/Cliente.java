@@ -21,6 +21,7 @@ import javax.swing.JOptionPane;
 import java.io.EOFException;
 import java.util.Timer;
 import java.util.TimerTask;
+import org.json.JSONObject;
 
 
 public class Cliente extends PApplet implements Runnable {
@@ -262,6 +263,9 @@ public class Cliente extends PApplet implements Runnable {
                     selectedDots.get(0).setSelected(false); // Desmarcar el primer punto
                     selectedDots.get(1).setSelected(false); // Desmarcar el segundo punto
                     selectedDots = new LinkedListCustom<Dot>();
+                    // Envía la nueva línea al servidor
+                    sendLineToServer(newLine);
+
                 } else {
                     // Manejar el caso cuando los puntos no son adyacentes
                     errorMsg = "Los puntos seleccionados no son adyacentes";
@@ -280,22 +284,25 @@ public class Cliente extends PApplet implements Runnable {
 
     // Comunicacion al servidor
 
-    public void sendActionToServer(Dot currentDot) {
-        JSONObject actionMessage = new JSONObject();
-        actionMessage.put("player", socket.getLocalPort());
-        actionMessage.put("dot", dotToJson(currentDot));
 
-        // Convierte el objeto JSON a una cadena y haz un print de ella
-        String jsonMessage = actionMessage.toString();
-        System.out.println("Enviando mensaje al servidor: " + jsonMessage);
+    public void sendLineToServer(Line line) {
+        // Crear un objeto JSON para la línea
+        String jsonLineString = lineToJson(line); // Suponiendo que lineToJson retorna un String
+        JSONObject jsonLine = new JSONObject(jsonLineString);
 
+
+        // Crear un objeto JSON principal que incluirá la información del jugador y la línea
+        JSONObject mainJson = new JSONObject();
+        mainJson.put("Jugador", String.valueOf(socket.getLocalPort())); // Añadir el puerto del socket como identificador del jugador
+        mainJson.put("Line", jsonLine); // Añadir el objeto JSON de la línea
+
+        // Enviar el objeto JSON principal al servidor
         try {
-            out.writeUTF(jsonMessage);
+            out.writeUTF(mainJson.toString());
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
-
 
 
     private JSONObject dotToJson(Dot currentDot) {
@@ -326,7 +333,24 @@ public class Cliente extends PApplet implements Runnable {
 
 
     //Metodos de utilidad
+    public String lineToJson(Line line) {
+        // Crear objetos JSONObject para dot1 y dot2
+        JSONObject jsonDot1 = new JSONObject();
+        jsonDot1.put("row", line.dot1.row);
+        jsonDot1.put("col", line.dot1.col);
 
+        JSONObject jsonDot2 = new JSONObject();
+        jsonDot2.put("row", line.dot2.row);
+        jsonDot2.put("col", line.dot2.col);
+
+        // Crear el objeto JSONObject para la línea y agregar dot1 y dot2
+        JSONObject jsonLine = new JSONObject();
+        jsonLine.put("dot1", jsonDot1);
+        jsonLine.put("dot2", jsonDot2);
+
+        // Retornar la representación en cadena del objeto JSONObject de la línea
+        return jsonLine.toString();
+    }
 //    public void send(String hola){
 //            try {
 //                out.writeUTF(hola);
