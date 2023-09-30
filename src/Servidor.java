@@ -158,6 +158,28 @@ public class Servidor extends PApplet {
     /*
     Aqui se ingresan el numero de filas y columnas
      */
+
+
+    public boolean isMaxLinesReached(int rows, int cols) {
+        int maxLines = (rows - 1) * cols + rows * (cols - 1);
+        boolean maxReached = lines.size() == maxLines;
+
+        if (maxReached) {
+            for (Player player : players) {
+                try {
+                    DataOutputStream out = new DataOutputStream(player.getSocket().getOutputStream());
+                    out.writeUTF("CLOSE_CLIENT");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            JOptionPane.showMessageDialog(null, "Se han creado todas las líneas posibles.", "Información", JOptionPane.INFORMATION_MESSAGE);
+            System.exit(0);
+        }
+
+        return maxReached;
+    }
     public void settings() {
     // Solicitar al usuario que ingrese el número de filas y columnas, separados por coma (,):
     String input;
@@ -231,6 +253,7 @@ public class Servidor extends PApplet {
         for (Square sq : completedSquares) {
             sq.display();
         }
+        isMaxLinesReached(cols,rows);
 
         // Display the lines
         for (Line line : lines) {
@@ -782,7 +805,7 @@ Aqui empieza la logica de los jsons y colores etc.
             try {
                 while (true) {
                     long currentTime = System.currentTimeMillis();
-                    long timeLeft = 5000 - (currentTime - elapsedTime);
+                    long timeLeft = 15000 - (currentTime - elapsedTime);
 
                     if (!gameStarted && timeLeft <= 0) {
                         try {

@@ -184,6 +184,9 @@ public class Cliente extends PApplet implements Runnable {
     public void setup() {
     }
 
+
+
+
     public void draw() {
         background(255);
         for (Square square : completedSquares) {
@@ -449,6 +452,9 @@ public class Cliente extends PApplet implements Runnable {
             return false;
         }
 
+
+
+
         Square(Dot topLeft, Dot bottomRight) {
             this.topLeft = topLeft;
             this.bottomRight = bottomRight;
@@ -510,6 +516,11 @@ public class Cliente extends PApplet implements Runnable {
 
 
         return completedSquares;
+    }
+
+    public void closeClient() {
+
+        System.exit(0);
     }
 
     private boolean checkSquareAbove(Dot left, Dot right) {
@@ -844,6 +855,11 @@ public class Cliente extends PApplet implements Runnable {
                 try {
                     String message = dataInput.readUTF();
                     System.out.println("Mensaje recibido del servidor: " + message);
+                    if ("CLOSE_CLIENT".equals(message)) {
+                        // Cierra la interfaz gráfica y termina la ejecución
+                        closeClient();
+                    }
+
 
                     handleServerMessage(message); // Usar la misma función para manejar mensajes dentro del bucle
                 } catch (EOFException e) {
