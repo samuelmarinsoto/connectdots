@@ -165,8 +165,19 @@ public class Servidor extends PApplet {
         boolean maxReached = lines.size() == maxLines;
 
         if (maxReached) {
+            int max = 0;
+             Object nombre = null;
+
             for (Player player : players) {
+
                 try {
+                    System.out.println(player.score);
+                    if(player.score>=max){
+                        max = player.score;
+                        nombre = "("+player.color.getRed()+","+player.color.getGreen()+","+player.color.getBlue()+")";
+
+                    }
+
                     DataOutputStream out = new DataOutputStream(player.getSocket().getOutputStream());
                     out.writeUTF("CLOSE_CLIENT");
                 } catch (IOException e) {
@@ -174,7 +185,7 @@ public class Servidor extends PApplet {
                 }
             }
 
-            JOptionPane.showMessageDialog(null, "Se han creado todas las líneas posibles.", "Información", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(null, "Se han creado todas las líneas posibles,"+"ganador: "+nombre+" con puntaje de: "+max, "Información", JOptionPane.INFORMATION_MESSAGE);
             System.exit(0);
         }
 
@@ -183,7 +194,7 @@ public class Servidor extends PApplet {
     public void settings() {
     // Solicitar al usuario que ingrese el número de filas y columnas, separados por coma (,):
     String input;
-    int minSize = 5; // Tamaño mínimo permitido
+    int minSize = 2; // Tamaño mínimo permitido
     do {
         input = JOptionPane.showInputDialog(null, "Ingrese el número de filas y columnas, separados por coma (,):");
 
