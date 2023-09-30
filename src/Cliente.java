@@ -198,10 +198,10 @@ public class Cliente extends PApplet implements Runnable {
                 firstDot = currentDot;
                 firstDot.isSelected = true;
             } else {
+                System.out.println(lineExists(firstDot,currentDot));
                 if (areAdjacentDots(firstDot, currentDot) && !lineExists(firstDot, currentDot)) {
 
                     Line newLine = new Line(firstDot, currentDot);
-
                     String dot1x = String.valueOf(firstDot.x);
                     String dot1y = String.valueOf(firstDot.y);
                     String dot2x = String.valueOf(currentDot.x);
@@ -284,12 +284,26 @@ public class Cliente extends PApplet implements Runnable {
             }
         }
         return false;
+
+    }
+
+
+    public boolean lineExists2(Dot d1, Dot d2) {
+        for (Line line : lines) {
+            if ((line.dot1 == d1 && line.dot2 == d2) || (line.dot1 == d2 && line.dot2 == d1)) {
+
+                return true;
+            }
+        }
+        return false;
+
     }
 
     Dot getDotAtRowCol(int row, int col) {
         for (Dot dot : dots) {
             if (dot.row == row && dot.col == col) {
                 return dot;
+
             }
         }
         return null;
@@ -676,16 +690,28 @@ public class Cliente extends PApplet implements Runnable {
             Dot dot2 = new Dot(Float.valueOf(vamos_aver[2]),Float.valueOf(vamos_aver[3]),5,Integer.parseInt(vamos_aver[7]),Integer.parseInt(vamos_aver[6]));
 
 
-            Line newLine = new Line(dot1, dot2);
-            lines.add(newLine);
-            getSquareAbove(dot1,dot2);
-            getSquareBelow(dot1,dot2);
-            getSquareLeft(dot1,dot2);
-            getSquareRight(dot1,dot2);
+
+            if (areAdjacentDots(dot1, dot2) && !lineExists(dot1, dot2)) {
+                Line newLine = new Line(dot1, dot2);
+                lines.add(newLine);
 
 
 
+                HashSet<String> lineSet = new HashSet<>();
+                for (Line line : lines) {
+                    lineSet.add(line.getUniqueRepresentation());
+                }
 
+                System.out.println(lineExists(dot1,dot2));
+
+
+
+                }
+            else {
+                errorMsg = "Selecciona puntos adyacentes o puntos entre los que no exista una línea!";
+                firstDot.isSelected = false;
+                firstDot = null;
+            }
 
 
 
@@ -694,7 +720,7 @@ public class Cliente extends PApplet implements Runnable {
 
             // Parsear el mensaje JSON recibido
 //            JSONArray jsonLines = new JSONArray(message);
-            
+
             // Iterar sobre las líneas JSON y agregarlas a la lista local de líneas
 //            for (int i = 0; i < jsonLines.length(); i++) {
 //                JSONObject jsonLine = jsonLines.getJSONObject(i);
