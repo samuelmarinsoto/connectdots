@@ -26,6 +26,36 @@ import org.json.JSONObject;
 
 public class Cliente extends PApplet implements Runnable {
 
+
+
+
+    // Data Structures
+    LinkedListCustom<Dot> dots;
+    LinkedListCustom<Line> lines;
+    LinkedListCustom<Dot> selectedDots = new LinkedListCustom<Dot>();
+    LinkedListCustom<Square> squares = new LinkedListCustom<Square>();
+
+    // Variables
+    Socket socket;
+    DataOutputStream out;
+    public static String samuel = "{}";
+    private boolean partidaComenzada = false;
+    public static int juego_iniciado = 0;
+    int rows; // Number of rows
+    int cols; // Number of columns
+    int currentPlayer = 1;
+    int rand_int1 = (int) Math.random();
+    int player1Color = color(rand_int1 + 100, 0, 0);  // Red for player 1
+    int selectedIndex = 0;
+    int selectedRow = 0;
+    int selectedCol = 0;
+    String errorMsg = "";
+    long errorDisplayStartTime = 0; // Tiempo de inicio de la visualización del mensaje de error
+    int errorDisplayDuration = 2000; // Duración del mensaje de error en milisegundos (2 segundos)
+    Dot firstDot = null;
+    DataInputStream in;
+    private Color clientColor = Color.BLACK; // o cualquier otro color predeterminado
+
     static class Node<T> {
         T value;
         Node<T> next;
@@ -108,43 +138,7 @@ public class Cliente extends PApplet implements Runnable {
             };
         }
     }
-    // Variables
-    Socket socket;
-    DataOutputStream out;
-    public static int color = 0;
 
-    public static String samuel = "{}";
-    private boolean partidaComenzada = false;
-
-
-    public static int juego_iniciado = 0;
-    LinkedListCustom<Dot> dots;
-    LinkedListCustom<Line> lines;
-    LinkedListCustom<Dot> selectedDots = new LinkedListCustom<Dot>();
-    LinkedListCustom<Square> squares = new LinkedListCustom<Square>();
-    int dotSize = 5;
-    int rows; // Number of rows
-    int cols; // Number of columns
-    int score = 0;
-    int currentPlayer = 1;
-
-    int rand_int1 = (int) Math.random();
-    int player1Color = color(rand_int1 + 100, 0, 0);  // Red for player 1
-
-    int selectedIndex = 0;
-    int selectedRow = 0;
-    int selectedCol = 0;
-    String errorMsg = "";
-    int player1Score = 0;
-    int player2Score = 0;
-    long errorDisplayStartTime = 0; // Tiempo de inicio de la visualización del mensaje de error
-    int errorDisplayDuration = 2000; // Duración del mensaje de error en milisegundos (2 segundos)
-
-
-    Dot firstDot = null;
-
-
-    DataInputStream in;
     public Cliente() {
             try {
                 this.socket = new Socket("127.0.0.1", 5000);
@@ -163,16 +157,16 @@ public class Cliente extends PApplet implements Runnable {
 
             Thread hilo = new Thread(this);
             hilo.start();
-
-            // Programar el pull cada X segundos (ajusta el valor según tu necesidad)
-            Timer timer = new Timer();
-            int pullIntervalSeconds = 5; // Ejemplo: pull cada 5 segundos
-            timer.scheduleAtFixedRate(new TimerTask() {
-                @Override // Asegúrate de que estás usando @Override correctamente
-                public void run() {
-                    pullGameStateFromServer();
-                }
-            }, 0, pullIntervalSeconds * 1000); // Convertir segundos a milisegundos
+//
+//            // Programar el pull cada X segundos (ajusta el valor según tu necesidad)
+//            Timer timer = new Timer();
+//            int pullIntervalSeconds = 5; // Ejemplo: pull cada 5 segundos
+//            timer.scheduleAtFixedRate(new TimerTask() {
+//                @Override // Asegúrate de que estás usando @Override correctamente
+//                public void run() {
+//                    pullGameStateFromServer();
+//                }
+//            }, 0, pullIntervalSeconds * 1000); // Convertir segundos a milisegundos
         }
 
     public void settings() {
@@ -198,8 +192,6 @@ public class Cliente extends PApplet implements Runnable {
         // Display the lines
         for (Line line : lines) {
             line.display();
-            System.out.println();
-
 
         }
 
@@ -221,115 +213,6 @@ public class Cliente extends PApplet implements Runnable {
             }
         }
     }
-
-    public void keyPressed() {
-        if (!partidaComenzada) {
-        // Si la partida no ha comenzado, no permitir al usuario realizar acciones
-            return;
-        }
-
-        // Manejar la entrada del usuario para mover el punto seleccionado
-        if (key == 'A' || key == 'a') {
-            selectedRow = max(0, selectedRow - 1);
-        } else if (key == 'W' || key == 'w') {
-            selectedCol = max(0, selectedCol - 1);
-        } else if (key == 'D' || key == 'd') {
-            selectedRow = min(rows - 1, selectedRow + 1);
-        } else if (key == 'S' || key == 's') {
-            selectedCol = min(cols - 1, selectedCol + 1);
-        } else if (key == 'L' || key == 'l') {
-            Dot currentDot = getDotAtRowCol(selectedRow, selectedCol);
-            if (currentDot != null) {
-                if (selectedDots.size() == 1) {
-                    // Desmarcar el primer punto seleccionado
-                    Dot firstSelectedDot = selectedDots.get(0);
-                    firstSelectedDot.setSelected(false);
-                }
-                // Marcar el punto actual y añadirlo a la lista de puntos seleccionados
-                currentDot.setSelected(true);
-                selectedDots.add(currentDot);
-            }
-
-            if (selectedDots.size() == 2) {
-                Dot dot1 = selectedDots.get(0);
-                Dot dot2 = selectedDots.get(1);
-                boolean areAdjacent = (Math.abs(dot1.row - dot2.row) == 1 && dot1.col == dot2.col) ||
-                        (Math.abs(dot1.col - dot2.col) == 1 && dot1.row == dot2.row);
-
-                if (areAdjacent) {
-                    // Dibuja una línea y vacía la lista de puntos seleccionados
-                    Line newLine = new Line(dot1, dot2);
-                    lines.add(newLine);
-                    selectedDots.get(0).setSelected(false); // Desmarcar el primer punto
-                    selectedDots.get(1).setSelected(false); // Desmarcar el segundo punto
-                    selectedDots = new LinkedListCustom<Dot>();
-                    // Envía la nueva línea al servidor
-                    sendLineToServer(newLine);
-
-                } else {
-                    // Manejar el caso cuando los puntos no son adyacentes
-                    errorMsg = "Los puntos seleccionados no son adyacentes";
-                    errorDisplayStartTime = millis(); // Establece el tiempo de inicio actual
-
-                    // Desmarcar ambos puntos seleccionados
-                    dot1.setSelected(false);
-                    dot2.setSelected(false);
-                    selectedDots = new LinkedListCustom<Dot>();
-                }
-            }
-        }
-    }
-
-
-
-    // Comunicacion al servidor
-
-
-    public void sendLineToServer(Line line) {
-        // Crear un objeto JSON para la línea
-        String jsonLineString = lineToJson(line); // Suponiendo que lineToJson retorna un String
-        JSONObject jsonLine = new JSONObject(jsonLineString);
-        JSONObject mainJson = new JSONObject();
-        mainJson.put("tipo", "nuevaLinea");
-        mainJson.put("Jugador", String.valueOf(socket.getLocalPort()));
-        mainJson.put("Line", jsonLine);
-
-        // Enviar el objeto JSON principal al servidor
-        try {
-            out.writeUTF(mainJson.toString());
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-
-    private JSONObject dotToJson(Dot currentDot) {
-        JSONObject json = new JSONObject();
-        json.put("row", currentDot.row);
-        json.put("col", currentDot.col);
-        return json;
-    }
-    public Dot jsonDotToDot(JSONObject json) {
-    int row = json.getInt("row");
-    int col = json.getInt("col");
-    return new Dot(row, col);
-}
-
-    public Line jsonLineToLine(JSONObject jsonLine) {
-        // Aquí debes extraer la información necesaria del JSONObject
-        // y utilizarla para crear y devolver un nuevo objeto Line.
-        // Este es solo un ejemplo básico:
-        JSONObject jsonDot1 = jsonLine.getJSONObject("dot1");
-        JSONObject jsonDot2 = jsonLine.getJSONObject("dot2");
-
-        Dot dot1 = jsonDotToDot(jsonDot1); // Asumiendo que tienes un método jsonDotToDot
-        Dot dot2 = jsonDotToDot(jsonDot2);
-
-        return new Line(dot1, dot2);
-    }
-
-
-
     //Metodos de utilidad
     public String lineToJson(Line line) {
         // Crear objetos JSONObject para dot1 y dot2
@@ -436,29 +319,28 @@ public class Cliente extends PApplet implements Runnable {
             int marginLeft = 20; // Margen inicial en el eje x
             return marginLeft + row * spacingX;
         }
-
-        static int convertColToY(int col) {
+    static int convertColToY(int col) {
             int spacingY = 40; // Distancia entre los puntos en el eje y
             int marginTop = 20; // Margen inicial en el eje y
             return marginTop + col * spacingY;
         }
-    private void pullGameStateFromServer() {
-        try {
-            // Enviar solicitud al servidor para obtener el estado del juego
-            JSONObject request = new JSONObject();
-            request.put("tipo", "solicitarEstado");
-            request.put("action", "pull");
-            out.writeUTF(request.toString());
-
-            // Leer la respuesta del servidor
-            String response = in.readUTF();
-            // Procesar la respuesta (puede ser un JSON que contiene el estado del juego)
-            // Aquí debes actualizar la representación local del juego con la información recibida
-            // y luego volver a dibujar la pantalla.
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
+//    private void pullGameStateFromServer() {
+//        try {
+//            // Enviar solicitud al servidor para obtener el estado del juego
+//            JSONObject request = new JSONObject();
+//            request.put("tipo", "solicitarEstado");
+//            request.put("action", "pull");
+//            out.writeUTF(request.toString());
+//
+//            // Leer la respuesta del servidor
+//            String response = in.readUTF();
+//            // Procesar la respuesta (puede ser un JSON que contiene el estado del juego)
+//            // Aquí debes actualizar la representación local del juego con la información recibida
+//            // y luego volver a dibujar la pantalla.
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//    }
 
     //CLASES INTERNAS
     class Dot {
@@ -476,11 +358,11 @@ public class Cliente extends PApplet implements Runnable {
         int y = Cliente.convertColToY(col);
 
         if (row == selectedRow && col == selectedCol) {
-            fill(0, 0, 255);  // Blue for the currently highlighted dot
+            fill(0, 0, 0);
         } else if (isSelected) {
-            fill(0, 255, 0);  // Green for the selected dot
+            fill(93, 192, 285);
         } else {
-            fill(100, 100, 100);
+            fill(clientColor.getRGB());
         }
 
         int radius = 5; // Puedes ajustar el valor del radio aquí
@@ -494,6 +376,84 @@ public class Cliente extends PApplet implements Runnable {
         // Nuevo método para establecer el campo isSelected
         void setSelected(boolean isSelected) {
             this.isSelected = isSelected;
+        }
+        public JSONObject toJson() {
+            JSONObject json = new JSONObject();
+            json.put("row", this.row);
+            json.put("col", this.col);
+            return json;
+        }
+    }
+    class Line {
+        Dot dot1, dot2;
+        int lineColor ;
+
+        Line(Dot dot1, Dot dot2) {
+            this.dot1 = dot1;
+            this.dot2 = dot2;
+            this.lineColor = clientColor.getRGB(); // Toma el color clientColor directamente
+        }
+
+        void display() {
+            stroke(lineColor);
+            int x1 = Cliente.convertRowToX(dot1.row);
+            int y1 = Cliente.convertColToY(dot1.col);
+            int x2 = Cliente.convertRowToX(dot2.row);
+            int y2 = Cliente.convertColToY(dot2.col);
+            line(x1, y1, x2, y2);
+        }
+
+        String getUniqueRepresentation() {
+            return dot1.getIdentifier() + "-" + dot2.getIdentifier();
+        }
+        public JSONObject toJson() {
+            JSONObject json = new JSONObject();
+            json.put("dot1", this.dot1.toJson());
+            json.put("dot2", this.dot2.toJson());
+            return json;
+        }
+    }
+    class Square {
+        Dot topLeft;
+        Dot bottomRight;
+        int size;
+
+        int color = -1;
+
+        boolean isClosed(HashSet<String> lineSet) {
+            int sizePixel = Cliente.convertRowToX(1) - Cliente.convertRowToX(0);
+            Line top = new Line(topLeft, getDotAt(topLeft.row, topLeft.col + 1));
+            Line left = new Line(topLeft, getDotAt(topLeft.row + 1, topLeft.col));
+            Line right = new Line(getDotAt(topLeft.row + 1, topLeft.col), getDotAt(topLeft.row + 1, topLeft.col + 1));
+            Line bottom = new Line(getDotAt(topLeft.row, topLeft.col + 1), getDotAt(topLeft.row + 1, topLeft.col + 1));
+            if (lineSet.contains(top.getUniqueRepresentation()) &&
+                    lineSet.contains(left.getUniqueRepresentation()) &&
+                    lineSet.contains(right.getUniqueRepresentation()) &&
+                    lineSet.contains(bottom.getUniqueRepresentation())) {
+                this.color = (currentPlayer == 1) ? player1Color : player1Color; // Set color
+                return true;
+            }
+
+            return false;
+        }
+
+        Square(Dot topLeft, Dot bottomRight) {
+            this.topLeft = topLeft;
+            this.bottomRight = bottomRight;
+            this.size = Cliente.convertRowToX(bottomRight.row) - Cliente.convertRowToX(topLeft.row);
+        }
+
+        void setColor(int playerColor) {
+            this.color = playerColor;
+        }
+
+        void display() {
+            if (color != -1) {
+                fill(color);
+                int x = Cliente.convertRowToX(topLeft.row);
+                int y = Cliente.convertColToY(topLeft.col);
+                rect(x, y, size, size);
+            }
         }
     }
     public LinkedListCustom<Square> getCompletedSquares(Line line) {
@@ -532,7 +492,6 @@ public class Cliente extends PApplet implements Runnable {
 
         return lineExists(topLeft, left) && lineExists(topRight, right) && lineExists(topLeft, topRight);
     }
-
     private boolean checkSquareBelow(Dot left, Dot right) {
         Dot bottomLeft = getDotAtRowCol(left.row + 1, left.col);
         Dot bottomRight = getDotAtRowCol(right.row + 1, right.col);
@@ -541,7 +500,6 @@ public class Cliente extends PApplet implements Runnable {
 
         return lineExists(bottomLeft, left) && lineExists(bottomRight, right) && lineExists(bottomLeft, bottomRight);
     }
-
     private boolean checkSquareLeft(Dot top, Dot bottom) {
         Dot topLeft = getDotAtRowCol(top.row, top.col - 1);
         Dot bottomLeft = getDotAtRowCol(bottom.row, bottom.col - 1);
@@ -550,7 +508,6 @@ public class Cliente extends PApplet implements Runnable {
 
         return lineExists(top, topLeft) && lineExists(bottom, bottomLeft) && lineExists(topLeft, bottomLeft);
     }
-
     private boolean checkSquareRight(Dot top, Dot bottom) {
         Dot topRight = getDotAtRowCol(top.row, top.col + 1);
         Dot bottomRight = getDotAtRowCol(bottom.row, bottom.col + 1);
@@ -616,7 +573,7 @@ public class Cliente extends PApplet implements Runnable {
         }
         return null;
     }
-    public Square getSquareRight(Dot d1, Dot d2) {
+    private Square getSquareRight(Dot d1, Dot d2) {
         if (d1.col != d2.col) {
             return null; // Not a vertical line
         }
@@ -636,78 +593,141 @@ public class Cliente extends PApplet implements Runnable {
         return null;
     }
 
-    class Line {
-        Dot dot1, dot2;
-        int lineColor = 0;
 
-        Line(Dot dot1, Dot dot2) {
-            this.dot1 = dot1;
-            this.dot2 = dot2;
-            this.lineColor = 0;
+    public void keyPressed() {
+        if (!partidaComenzada) {
+            return;
         }
 
-        void display() {
-            stroke(player1Color);
-            int x1 = Cliente.convertRowToX(dot1.row);
-            int y1 = Cliente.convertColToY(dot1.col);
-            int x2 = Cliente.convertRowToX(dot2.row);
-            int y2 = Cliente.convertColToY(dot2.col);
-            line(x1, y1, x2, y2);
-        }
+        // Manejar la entrada del usuario para mover el punto seleccionado
+        if (key == 'A' || key == 'a') {
+            selectedRow = max(0, selectedRow - 1);
+        } else if (key == 'W' || key == 'w') {
+            selectedCol = max(0, selectedCol - 1);
+        } else if (key == 'D' || key == 'd') {
+            selectedRow = min(rows - 1, selectedRow + 1);
+        } else if (key == 'S' || key == 's') {
+            selectedCol = min(cols - 1, selectedCol + 1);
+        } else if (key == 'L' || key == 'l') {
+            Dot currentDot = getDotAtRowCol(selectedRow, selectedCol);
+            if (currentDot != null) {
+                if (selectedDots.size() == 2) {
+                    // Desmarcar el primer punto seleccionado
+                    Dot firstSelectedDot = selectedDots.get(0);
+                    firstSelectedDot.setSelected(false);
+                }
+                // Marcar el punto actual y añadirlo a la lista de puntos seleccionados
+                currentDot.setSelected(true);
+                selectedDots.add(currentDot);
+            }
 
-        String getUniqueRepresentation() {
-            return dot1.getIdentifier() + "-" + dot2.getIdentifier();
+            if (selectedDots.size() == 2) {
+                Dot dot1 = selectedDots.get(0);
+                Dot dot2 = selectedDots.get(1);
+                boolean areAdjacent = (Math.abs(dot1.row - dot2.row) == 1 && dot1.col == dot2.col) ||
+                        (Math.abs(dot1.col - dot2.col) == 1 && dot1.row == dot2.row);
+
+                if (areAdjacent) {
+                    // Verificar si la línea ya existe
+                    if (!lineExists(dot1, dot2)) {
+                        // Dibuja una línea y vacía la lista de puntos seleccionados
+                        Line newLine = new Line(dot1, dot2);
+                        lines.add(newLine);
+                        selectedDots.get(0).setSelected(false); // Desmarcar el primer punto
+                        selectedDots.get(1).setSelected(false); // Desmarcar el segundo punto
+
+                        // Envía la nueva línea al servidor
+                        try {
+                            // Envía la nueva línea al servidor
+                            sendLineToServer(newLine);
+                            selectedDots = new LinkedListCustom<Dot>();
+                        } catch (IOException e) {
+                            // Manejar la excepción aquí. Por ejemplo:
+                            e.printStackTrace();
+                            errorMsg = "Error al enviar la línea al servidor.";
+                            errorDisplayStartTime = millis(); // Establece el tiempo de inicio actual
+                        }
+                    } else {
+                        errorMsg = "La línea ya existe!";
+                        errorDisplayStartTime = millis(); // Establece el tiempo de inicio actual
+                        dot1.setSelected(false);
+                        dot2.setSelected(false);
+                        selectedDots = new LinkedListCustom<Dot>();
+                    }
+                } else {
+                    // Manejar el caso cuando los puntos no son adyacentes
+                    errorMsg = "Los puntos seleccionados no son adyacentes";
+                    errorDisplayStartTime = millis(); // Establece el tiempo de inicio actual
+
+                    // Desmarcar ambos puntos seleccionados
+                    dot1.setSelected(false);
+                    dot2.setSelected(false);
+                    selectedDots = new LinkedListCustom<Dot>();
+                }
+            }
         }
     }
 
-    class Square {
-        Dot topLeft;
-        Dot bottomRight;
-        int size;
 
-        int color = -1;
+    // Comunicacion al servidor
 
-        boolean isClosed(HashSet<String> lineSet) {
-            int sizePixel = Cliente.convertRowToX(1) - Cliente.convertRowToX(0);
-            Line top = new Line(topLeft, getDotAt(topLeft.row, topLeft.col + 1));
-            Line left = new Line(topLeft, getDotAt(topLeft.row + 1, topLeft.col));
-            Line right = new Line(getDotAt(topLeft.row + 1, topLeft.col), getDotAt(topLeft.row + 1, topLeft.col + 1));
-            Line bottom = new Line(getDotAt(topLeft.row, topLeft.col + 1), getDotAt(topLeft.row + 1, topLeft.col + 1));
-            if (lineSet.contains(top.getUniqueRepresentation()) &&
-                    lineSet.contains(left.getUniqueRepresentation()) &&
-                    lineSet.contains(right.getUniqueRepresentation()) &&
-                    lineSet.contains(bottom.getUniqueRepresentation())) {
-                this.color = (currentPlayer == 1) ? player1Color : player1Color; // Set color
-                return true;
-            }
 
-            return false;
-        }
+    public void sendLineToServer(Line line) throws IOException {
+        // Crear el objeto JSON principal y agregar la línea, tipo y puerto
+        DataOutputStream out2 = new DataOutputStream(socket.getOutputStream());
+        JSONObject mainJson = new JSONObject();
+        mainJson.put("tipo", "LineaEnviadaPorCliente");
+        mainJson.put("puerto", socket.getLocalPort());
+        mainJson.put("linea", line.toJson());
 
-        Square(Dot topLeft, Dot bottomRight) {
-            this.topLeft = topLeft;
-            this.bottomRight = bottomRight;
-            this.size = Cliente.convertRowToX(bottomRight.row) - Cliente.convertRowToX(topLeft.row);
-        }
-
-        void setColor(int playerColor) {
-            this.color = playerColor;
-        }
-
-        void display() {
-            if (color != -1) {
-                fill(color);
-                int x = Cliente.convertRowToX(topLeft.row);
-                int y = Cliente.convertColToY(topLeft.col);
-                rect(x, y, size, size);
-            }
+        System.out.println("Enviando mensaje: " + mainJson.toString());
+        try {
+            out2.writeUTF(mainJson.toString());
+            out2.flush();
+            System.out.println("Mensaje enviado.");
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
+
+
+
+
+    private JSONObject dotToJson(Dot currentDot) {
+        JSONObject json = new JSONObject();
+        json.put("row", currentDot.row);
+        json.put("col", currentDot.col);
+        return json;
+    }
+    public Dot jsonDotToDot(JSONObject json) {
+    int row = json.getInt("row");
+    int col = json.getInt("col");
+    return new Dot(row, col);
+}
+
+    public Line jsonLineToLine(JSONObject jsonLine) {
+        // Aquí debes extraer la información necesaria del JSONObject
+        // y utilizarla para crear y devolver un nuevo objeto Line.
+        // Este es solo un ejemplo básico:
+        JSONObject jsonDot1 = jsonLine.getJSONObject("dot1");
+        JSONObject jsonDot2 = jsonLine.getJSONObject("dot2");
+
+        Dot dot1 = jsonDotToDot(jsonDot1); // Asumiendo que tienes un método jsonDotToDot
+        Dot dot2 = jsonDotToDot(jsonDot2);
+
+        return new Line(dot1, dot2);
+    }
+
+
+
+
+
+
+
+
+
 
     //Métodos de lógica del juego
-
-
-
     public void run() {
         try {
             DataOutputStream out = new DataOutputStream(socket.getOutputStream());
@@ -719,30 +739,15 @@ public class Cliente extends PApplet implements Runnable {
             out.writeUTF(puertoJson.toString());
 
             // Solicitar la información de la partida al servidor
-            JSONObject solicitudJson = new JSONObject();
-            solicitudJson.put("tipo", "solicitud");
-            solicitudJson.put("accion", "SOLICITAR_INFORMACION_PARTIDA");
-            out.writeUTF(solicitudJson.toString());
+//            JSONObject solicitudJson = new JSONObject();
+//            solicitudJson.put("tipo", "solicitud");
+//            solicitudJson.put("accion", "SOLICITAR_INFORMACION_PARTIDA");
+//            out.writeUTF(solicitudJson.toString());
 
             // Leer la respuesta del servidor
             String respuesta = in.readUTF();
             System.out.println("Información de la partida recibida: " + respuesta);
-            JSONObject partidaInfo = new JSONObject(respuesta);
-
-            if (partidaInfo.has("rows")) {
-                // La clave "rows" existe, acceder a ella
-                rows = partidaInfo.getInt("rows");
-                cols = partidaInfo.getInt("cols");
-
-                // Generar los puntos de acuerdo a las dimensiones recibidas
-                generateDots();
-            } else if (partidaInfo.has("status")) {
-                // Manejar mensajes de estado, como "INFO"
-                System.out.println(partidaInfo.getString("message"));
-            } else {
-                // Manejar otros casos o errores
-                System.err.println("Mensaje desconocido: " + respuesta);
-            }
+            handleServerMessage(respuesta); // Usar una función para manejar mensajes
 
             while (true) {
                 DataInputStream dataInput = new DataInputStream(socket.getInputStream());
@@ -751,30 +756,41 @@ public class Cliente extends PApplet implements Runnable {
                     String message = dataInput.readUTF();
                     System.out.println("Mensaje recibido del servidor: " + message);
 
-                    JSONObject mensajeJson = new JSONObject(message);
-                    String tipo = mensajeJson.getString("tipo");
-                    switch (tipo) {
-                        case "info":
-                            System.out.println("¡Conexión con el servidor establecida con éxito!");
-                            break;
-                        case "inicioPartida":
-                            partidaComenzada = true;
-                            System.out.println("¡La partida ha comenzado!");
-                            break;
-                        // Añadir más casos según sea necesario
-                        default:
-                            System.err.println("Tipo de mensaje desconocido: " + tipo);
-                    }
+                    handleServerMessage(message); // Usar la misma función para manejar mensajes dentro del bucle
                 } catch (EOFException e) {
                     System.err.println("Se ha alcanzado el final del stream mientras se leía. ¿El servidor cerró la conexión?");
-                    break; // Salir del bucle ya que no podemos leer más datos
+
                 }
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
-
+    private void handleServerMessage(String message) throws JSONException {
+        JSONObject mensajeJson = new JSONObject(message);
+        String tipo = mensajeJson.getString("tipo");
+        switch (tipo) {
+            case "info":
+                System.out.println("¡Conexión con el servidor establecida con éxito!");
+                break;
+            case "inicioPartida":
+                partidaComenzada = true;
+                System.out.println("¡La partida ha comenzado!");
+                break;
+            case "asignacionColor":
+                int assignedColorRGB = mensajeJson.getInt("color");
+                clientColor = new Color(assignedColorRGB);
+                System.out.println("Color asignado: " + clientColor.toString());
+                redraw();
+                break;
+            case "estadoJuego":
+                // Aquí debes agregar la lógica para manejar el estado del juego que se recibe.
+                // Por ejemplo, actualizar las líneas y el color del cliente en función de la información recibida.
+                break;
+            default:
+                System.err.println("Tipo de mensaje desconocido: " + tipo);
+        }
+    }
 
 
     public static void main(String args[]) {

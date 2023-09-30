@@ -147,11 +147,13 @@ public class Servidor extends PApplet {
             };
         }
     }
+    /*
+    Aqui se ingresan el numero de filas y columnas
+     */
     public void settings() {
     // Solicitar al usuario que ingrese el número de filas y columnas, separados por coma (,):
     String input;
     int minSize = 5; // Tamaño mínimo permitido
-
     do {
         input = JOptionPane.showInputDialog(null, "Ingrese el número de filas y columnas, separados por coma (,):");
 
@@ -185,22 +187,24 @@ public class Servidor extends PApplet {
         }
     } while (true);
 
-    int windowSizeX = convertRowToX(rows) - 10; // Ajustar según sea necesario
-    int windowSizeY = convertColToY(cols) - 10; // Ajustar según sea necesario
+        int windowSizeX = convertRowToX(rows) - 10; // Ajustar según sea necesario
+        int windowSizeY = convertColToY(cols) - 10; // Ajustar según sea necesario
 
-    size(windowSizeX, windowSizeY);
+        size(windowSizeX, windowSizeY);
 
-    dots = new LinkedListCustom<>();
-    lines = new LinkedListCustom<>();
-    generateDots();
-}
+        dots = new LinkedListCustom<>();
+        lines = new LinkedListCustom<>();
+        generateDots();
+    }
 
-
+    /*
+    Métodos para inicializar y ejecutar el servidor
+     */
     public void setup() {
         System.out.println("Configurando setup y arrancando servidor");
         new Thread(this::startServer).start();
     }
-
+    // BUCLE PARA PINTAR LAS COSAS
     public void draw() {
         background(255);
         for (Square sq : squares) {
@@ -223,7 +227,9 @@ public class Servidor extends PApplet {
 //            text(errorMsg, 20, 90);
         }
     }
-
+    /*
+    Métodos para convertir entre coordenadas de la ventana y coordenadas de la matriz
+     */
     static int convertRowToX(int row) {
         int spacingX = 40; // Distancia entre los puntos en el eje x
         int marginLeft = 20; // Margen inicial en el eje x
@@ -236,7 +242,9 @@ public class Servidor extends PApplet {
         return marginTop + col * spacingY;
     }
 
-    //Clases internas
+    /*
+    AQUÍ ESTÁN LOS OBJETOS QUE SE USAN EN EL JUEGO
+     */
     private class Dot {
         int row, col;
 
@@ -367,6 +375,7 @@ public class Servidor extends PApplet {
     }
 
 
+    ////////////////////////////////////////////
     //Metodos de logica del juego
     public boolean lineExists(Dot d1, Dot d2) {
         for (Line line : lines) {
@@ -376,7 +385,6 @@ public class Servidor extends PApplet {
         }
         return false;
     }
-
     Dot getDotAtRowCol(int row, int col) {
         for (Dot dot : dots) {
             if (dot.row == row && dot.col == col) {
@@ -385,14 +393,12 @@ public class Servidor extends PApplet {
         }
         return null;
     }
-
     private boolean doesSquareExist(Dot topLeft, Dot bottomRight) {
         Dot topRight = getDotAtRowCol(topLeft.row, bottomRight.col);
         Dot bottomLeft = getDotAtRowCol(bottomRight.row, topLeft.col);
 
         return lineExists(topLeft, topRight) && lineExists(topLeft, bottomLeft) && lineExists(bottomRight, bottomLeft) && lineExists(bottomRight, topRight);
     }
-
     public LinkedListCustom<Square> getCompletedSquares(Line line) {
         LinkedListCustom<Square> completedSquares = new LinkedListCustom<>();
 
@@ -421,8 +427,6 @@ public class Servidor extends PApplet {
 
         return completedSquares;
     }
-
-
     private boolean checkSquareAbove(Dot left, Dot right) {
         Dot topLeft = getDotAtRowCol(left.row - 1, left.col);
         Dot topRight = getDotAtRowCol(right.row - 1, right.col);
@@ -431,7 +435,6 @@ public class Servidor extends PApplet {
 
         return lineExists(topLeft, left) && lineExists(topRight, right) && lineExists(topLeft, topRight);
     }
-
     private boolean checkSquareBelow(Dot left, Dot right) {
         Dot bottomLeft = getDotAtRowCol(left.row + 1, left.col);
         Dot bottomRight = getDotAtRowCol(right.row + 1, right.col);
@@ -440,7 +443,6 @@ public class Servidor extends PApplet {
 
         return lineExists(bottomLeft, left) && lineExists(bottomRight, right) && lineExists(bottomLeft, bottomRight);
     }
-
     private boolean checkSquareLeft(Dot top, Dot bottom) {
         Dot topLeft = getDotAtRowCol(top.row, top.col - 1);
         Dot bottomLeft = getDotAtRowCol(bottom.row, bottom.col - 1);
@@ -449,7 +451,6 @@ public class Servidor extends PApplet {
 
         return lineExists(top, topLeft) && lineExists(bottom, bottomLeft) && lineExists(topLeft, bottomLeft);
     }
-
     private boolean checkSquareRight(Dot top, Dot bottom) {
         Dot topRight = getDotAtRowCol(top.row, top.col + 1);
         Dot bottomRight = getDotAtRowCol(bottom.row, bottom.col + 1);
@@ -458,14 +459,12 @@ public class Servidor extends PApplet {
 
         return lineExists(top, topRight) && lineExists(bottom, bottomRight) && lineExists(topRight, bottomRight);
     }
-
     boolean areAdjacentDots(Dot dot1, Dot dot2) {
         int dRow = Math.abs(dot1.row - dot2.row);
         int dCol = Math.abs(dot1.col - dot2.col);
 
         return ((dRow == 1 && dCol == 0) || (dRow == 0 && dCol == 1));
     }
-
     boolean isLineExists(Dot d1, Dot d2) {
         for (Line line : lines) {
             if ((line.dot1 == d1 && line.dot2 == d2) || (line.dot1 == d2 && line.dot2 == d1)) {
@@ -474,7 +473,6 @@ public class Servidor extends PApplet {
         }
         return false;
     }
-
     Dot getDotAt(int x, int y) {
         for (Dot dot : dots) {
             if (Math.abs(dot.row - x) < 1 && Math.abs(dot.col - y) < 1) {
@@ -483,7 +481,6 @@ public class Servidor extends PApplet {
         }
         return null;
     }
-
     private Square getSquareAbove(Dot d1, Dot d2) {
         if (d1.row != d2.row) {
             return null; // Not a horizontal line
@@ -503,7 +500,6 @@ public class Servidor extends PApplet {
         }
         return null;
     }
-
     private Square getSquareBelow(Dot d1, Dot d2) {
         if (d1.row != d2.row) {
             return null; // Not a horizontal line
@@ -523,7 +519,6 @@ public class Servidor extends PApplet {
         }
         return null;
     }
-
     private Square getSquareLeft(Dot d1, Dot d2) {
         if (d1.col != d2.col) {
             return null; // Not a vertical line
@@ -543,7 +538,6 @@ public class Servidor extends PApplet {
         }
         return null;
     }
-
     private Square getSquareRight(Dot d1, Dot d2) {
         if (d1.col != d2.col) {
             return null; // Not a vertical line
@@ -563,7 +557,7 @@ public class Servidor extends PApplet {
         }
         return null;
     }
-
+/////////////////////////////////////////////////////////////////////////////////////////////////////
     //    // Comunicaciones
 //    public void handleClientAction(String action) {
 //    // Parsear la acción recibida (posiblemente en formato JSON)
@@ -597,7 +591,9 @@ public class Servidor extends PApplet {
      // Función para asignar colores a los clientes en orden
 
 
-
+/*
+Aqui empieza la logica de los jsons y colores etc.
+ */
     public JSONObject toJsonObject() {
         JSONObject json = new JSONObject();
         // Añade los campos de la línea al objeto json
@@ -606,7 +602,12 @@ public class Servidor extends PApplet {
         // json.put("end", this.end);
         return json;
     }
-    private Line jsonLineToLine(JSONObject jsonLine) {
+    private Dot jsonDotToDot(JSONObject jsonDot) {
+        int row = jsonDot.getInt("row");
+        int col = jsonDot.getInt("col");
+        return new Dot(row, col);
+    }
+    private Line jsonLineToLine(JSONObject jsonLine, int port) {
         // Extraer los objetos JSON para dot1 y dot2
         JSONObject jsonDot1 = jsonLine.getJSONObject("dot1");
         JSONObject jsonDot2 = jsonLine.getJSONObject("dot2");
@@ -620,38 +621,38 @@ public class Servidor extends PApplet {
         // Obtener los objetos Dot correspondientes a las coordenadas
         Dot dot1 = getDotAtRowCol(row1, col1);
         Dot dot2 = getDotAtRowCol(row2, col2);
-        int port = jsonLine.getInt("port");
+
         // Crear y retornar un nuevo objeto Line con los puntos dot1 y dot2
         return new Line(dot1, dot2, port);
     }
-
-    private Color getNextPlayerColor() {
-        if (coloresDisponibles.isEmpty()) {
-            // Si se agotaron los colores disponibles, reiniciar la lista de colores
-            coloresDisponibles.addAll(colors);
-        }
-        Color playerColor = coloresDisponibles.poll(); // Obtener el siguiente color disponible
-        return playerColor;
-
-    }
-
     public void startGameCountdown() {
         elapsedTime = System.currentTimeMillis(); // Inicializar elapsedTime aquí
         Thread countdownThread = new Thread(() -> {
             try {
                 while (true) {
                     long currentTime = System.currentTimeMillis();
-                    long timeLeft = 15000 - (currentTime - elapsedTime);
+                    long timeLeft = 5000 - (currentTime - elapsedTime);
 
                     if (!gameStarted && timeLeft <= 0) {
+                        try {
+                            Thread.sleep(1000);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
                         gameStarted = true;
                         System.out.println("La partida ha comenzado.");
 
                         // Informar a todos los clientes conectados que la partida ha comenzado
-                        while (!playerQueue.isEmpty()) {
-                            Player player = playerQueue.dequeue();
-                            DataOutputStream out = new DataOutputStream(player.getSocket().getOutputStream());
-                            out.writeUTF("Partida Comenzada");
+                        for (Player player : players) {
+                            try {
+                                System.out.println("Enviando inicioPartida al jugador con socket: " + player.getSocket()); // Mensaje de registro
+                                DataOutputStream out = new DataOutputStream(player.getSocket().getOutputStream());
+                                JSONObject jsonResponse = new JSONObject();
+                                jsonResponse.put("tipo", "inicioPartida");
+                                out.writeUTF(jsonResponse.toString());
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
                         }
                     }
 
@@ -665,18 +666,33 @@ public class Servidor extends PApplet {
 
         countdownThread.start();
     }
+    private Color getNextPlayerColor() {
+            if (coloresDisponibles.isEmpty()) {
+                // Si se agotaron los colores disponibles, reiniciar la lista de colores
+                coloresDisponibles.addAll(colors);
+            }
+            Color playerColor = coloresDisponibles.poll(); // Obtener el siguiente color disponible
+            return playerColor;
+
+        }
     class ClientHandler implements Runnable {
         private Socket clientSocket;
         private Color playerColor;
         private List<Player> players;
         private DataOutputStream out;
+
         public ClientHandler(Socket socket, List<Player> players, Color playerColor) {
             this.clientSocket = socket;
             this.playerColor = playerColor;
             this.players = players;
             try {
                 this.out = new DataOutputStream(clientSocket.getOutputStream());
-            }catch (IOException e){
+                // Aquí es donde enviaríamos el color al cliente después de asignarlo:
+                JSONObject colorMessage = new JSONObject();
+                colorMessage.put("tipo", "asignacionColor");
+                colorMessage.put("color", playerColor.getRGB());
+                out.writeUTF(colorMessage.toString());
+            } catch (IOException e) {
                 e.printStackTrace();
             }
         }
@@ -691,7 +707,7 @@ public class Servidor extends PApplet {
         }
 
 
-        private List<Line> buscarLineasPorPuerto ( int puerto){
+        private List<Line> buscarLineasPorPuerto(int puerto) {
             // Implementa la lógica para buscar las líneas por puerto
             return new ArrayList<>();
         }
@@ -701,126 +717,175 @@ public class Servidor extends PApplet {
         public void run() {
             try {
                 DataInputStream in = new DataInputStream(clientSocket.getInputStream());
-                // Leer el JSON enviado por el cliente
-                String jsonStr = in.readUTF();
-                JSONObject json = new JSONObject(jsonStr);
-                // Procesar el objeto JSON según su tipo
-                String tipo = json.getString("tipo");
-                switch (tipo) {
-                    case "puerto":
-                        // Manejar mensaje de puerto
-                        int puerto = json.getInt("puerto");
-                        // Aquí se puede procesar el puerto recibido
-                        System.out.println("Puerto recibido: " + puerto);
-                        break;
-                    case "linea":
-                        // Obtener la línea
-                        JSONObject jsonLine = json.getJSONObject("Line");
-                        Line line = jsonLineToLine(jsonLine); // Convertir el JSONObject a un objeto Line
-                        // Añadir la línea a la lista de líneas y asignarle el color del jugador
-                        Player playerInstance = null;
-                        for (Player player : players) {
-                            if (player.getSocket().equals(clientSocket)) {
-                                playerInstance = player;
-                                break;
-                            }
-                        }
-                        if (playerInstance != null) {
-                            // ...
-                        } else {
-                            // Si playerInstance es nulo, se debería añadir el jugador a la lista players
-                            Color playerColor = getNextPlayerColor();
-                            Player player = new Player(playerColor, clientSocket);
-                            players.add(player);
-                            playerQueue.enqueue(player);
-                            System.out.println("Cliente conectado. Color asignado: " + playerColor);
-                        }
+                while (!clientSocket.isClosed()) { // Mientras el socket no esté cerrado
+                    // Leer el JSON enviado por el cliente
+                    String jsonStr = in.readUTF();
 
-                        if (playerInstance != null) {
-                            Color playerColor = playerInstance.getColor();
-                            if (playerColor != null) {
-                                line.lineColor = playerColor.getRGB();
+                    // Imprimir cada mensaje recibido
+                    System.out.println("Mensaje recibido: " + jsonStr);
+
+                    JSONObject json = new JSONObject(jsonStr);
+                    // Procesar el objeto JSON según su tipo
+                    String tipo = json.getString("tipo");
+                    switch (tipo) {
+                        case "puerto":
+                            // Manejar mensaje de puerto
+                            int puerto = json.getInt("puerto");
+                            // Aquí se puede procesar el puerto recibido
+                            System.out.println("Puerto recibido: " + puerto);
+                            break;
+                        case "linea":
+                            int port = json.getInt("puerto");
+                            JSONObject jsonDot1 = json.getJSONObject("dot1");
+                            JSONObject jsonDot2 = json.getJSONObject("dot2");
+                            Dot dot1 = jsonDotToDot(jsonDot1);
+                            Dot dot2 = jsonDotToDot(jsonDot2);
+                            Line line = new Line(dot1, dot2, port);
+
+                            // Agregar mensaje de registro para verificar que la línea ha sido recibida
+                            System.out.println("Línea recibida: " + line.toString() + " desde el puerto: " + port);
+
+                            // Buscar el color asociado a este puerto
+                            Color color = buscarColorPorPuerto(port);
+                            if (color != null) {
+                                line.lineColor = color.getRGB();
                             } else {
-                                // Si playerColor es nulo, asigna un color predeterminado al primer jugador.
-                                if (players.isEmpty()) {
-                                    Color defaultColor = Color.RED; // Puedes elegir el color predeterminado que desees.
-                                    line.lineColor = defaultColor.getRGB();
-                                } else {
-                                    // Manejo de caso donde no es el primer jugador.
-                                    // Asigna colores de la lista "colors" a los jugadores subsiguientes.
-                                    // Asegúrate de tener una lista de colores disponibles en "coloresDisponibles".
-
-                                    if (!coloresDisponibles.isEmpty()) {
-                                        // Obtén el próximo color disponible desde la lista de colores disponibles.
-                                        Color nextPlayerColor = coloresDisponibles.poll();
-
-                                        // Asigna el color al jugador.
-                                        line.lineColor = nextPlayerColor.getRGB();
-                                    } else {
-                                        // Manejo del caso donde te has quedado sin colores disponibles.
-                                        // Puedes generar un mensaje de error o manejarlo de la manera que prefieras.
-                                    }
-                                }
+                                // Manejar caso en el que no se encuentra un color para el puerto
+                                System.err.println("No seFes encontró color para el puerto: " + port);
                             }
-                        } else {
-                            // Manejo de caso donde playerInstance es nulo
-                            // Aquí debes manejar el caso donde no se encuentra una instancia de jugador válida.
-                        }
+                            lines.add(line);
+                            break;
+                        case "LineaEnviadaPorCliente":
+                            System.out.println("Mensaje de tipo LineaEnviadaPorCliente recibido");
 
+                            // Obtener el puerto y el objeto JSON de la línea
+                            int PuertoDeRecepcionDeLinea = json.getInt("puerto");
+                            JSONObject jsonLine = json.getJSONObject("linea");
 
+                            // Convertir el objeto JSON a un objeto Line
+                            Line LineaEnviadaPorCliente = jsonLineToLine(jsonLine, PuertoDeRecepcionDeLinea);
 
-                        lines.add(line);
-                        // Asignar colores a los clientes en el orden en que se conectan
-                        if (!gameStarted) {
-                            Color playerColor = getNextPlayerColor();
-                            Player player = new Player(playerColor, clientSocket);
-                            players.add(player);
-                            playerQueue.enqueue(player);
-                            System.out.println("Cliente conectado. Color asignado: " + playerColor);
-                        } else {
-                            System.out.println("La partida ha comenzado. Cliente en espera.");
-                        }
+                            // Buscar el color asociado a este puerto
+                            Color colorLineaRecibida = buscarColorPorPuerto(PuertoDeRecepcionDeLinea);
+                            if (colorLineaRecibida != null) {
+                                LineaEnviadaPorCliente.lineColor = colorLineaRecibida.getRGB();
+                            } else {
+                                // Manejar caso en el que no se encuentra un color para el puerto
+                                System.err.println("No se encontró color para el puerto: " + PuertoDeRecepcionDeLinea);
+                            }
+
+                            // Imprimir información de la línea recibida
+                            System.out.println("Línea recibida: " + LineaEnviadaPorCliente.toString());
+
+                            // Añadir la línea a la lista de líneas
+                            lines.add(LineaEnviadaPorCliente);
+
+                            // Repintar la ventana
+                            redraw();
                         break;
-                    case "solicitarEstado":
-                    // Manejar mensaje de solicitarEstado
-                    // Aquí puedes enviar de vuelta al cliente el estado actual del juego.
+                        //                        Player playerInstance = null;
+                        //                        for (Player player : players) {
+                        //                            if (player.getSocket().equals(clientSocket)) {
+                        //                                playerInstance = player;
+                        //                                break;
+                        //                            }
+                        //                        }
+                        //                        if (playerInstance != null) {
+                        //                            // ...
+                        //                        } else {
+                        //                            // Si playerInstance es nulo, se debería añadir el jugador a la lista players
+                        //                            Color playerColor = getNextPlayerColor();
+                        //                            Player player = new Player(playerColor, clientSocket);
+                        //                            players.add(player);
+                        //                            playerQueue.enqueue(player);
+                        //                            System.out.println("Cliente conectado. Color asignado: " + playerColor);
+                        //                        }
+                        //
+                        //                        if (playerInstance != null) {
+                        //                            Color playerColor = playerInstance.getColor();
+                        //                            if (playerColor != null) {
+                        //                                line.lineColor = playerColor.getRGB();
+                        //                            } else {
+                        //                                // Si playerColor es nulo, asigna un color predeterminado al primer jugador.
+                        //                                if (players.isEmpty()) {
+                        //                                    Color defaultColor = Color.RED; // Puedes elegir el color predeterminado que desees.
+                        //                                    line.lineColor = defaultColor.getRGB();
+                        //                                } else {
+                        //                                    // Manejo de caso donde no es el primer jugador.
+                        //                                    // Asigna colores de la lista "colors" a los jugadores subsiguientes.
+                        //                                    // Asegúrate de tener una lista de colores disponibles en "coloresDisponibles".
+                        //
+                        //                                    if (!coloresDisponibles.isEmpty()) {
+                        //                                        // Obtén el próximo color disponible desde la lista de colores disponibles.
+                        //                                        Color nextPlayerColor = coloresDisponibles.poll();
+                        //
+                        //                                        // Asigna el color al jugador.
+                        //                                        line.lineColor = nextPlayerColor.getRGB();
+                        //                                    } else {
+                        //                                        // Manejo del caso donde te has quedado sin colores disponibles.
+                        //                                        // Puedes generar un mensaje de error o manejarlo de la manera que prefieras.
+                        //                                    }
+                        //                                }
+                        //                            }
+                        //                        } else {
+                        //                            // Manejo de caso donde playerInstance es nulo
+                        //                            // Aquí debes manejar el caso donde no se encuentra una instancia de jugador válida.
+                        //                        }
+                        //
+                        //
+                        //
+                        //                        lines.add(line);
+                        //                        // Asignar colores a los clientes en el orden en que se conectan
+                        //                        if (!gameStarted) {
+                        //                            Color playerColor = getNextPlayerColor();
+                        //                            Player player = new Player(playerColor, clientSocket);
+                        //                            players.add(player);
+                        //                            playerQueue.enqueue(player);
+                        //                            System.out.println("Cliente conectado. Color asignado: " + playerColor);
+                        //                        } else {
+                        //                            System.out.println("La partida ha comenzado. Cliente en espera.");
+                        //                        }
 
-                    // Crear un JSONObject que contenga toda la información del estado del juego.
-                    JSONObject estadoJuego = new JSONObject();
-                    estadoJuego.put("tipo", "estadoJuego");
+                        case "solicitarEstado":
+                            // Manejar mensaje de solicitarEstado
+                            // Aquí puedes enviar de vuelta al cliente el estado actual del juego.
 
-                    // Añadir el puerto al JSONObject estadoJuego
-                    estadoJuego.put("puerto", clientSocket.getPort());
+                            // Crear un JSONObject que contenga toda la información del estado del juego.
+                            JSONObject estadoJuego = new JSONObject();
+                            estadoJuego.put("tipo", "estadoJuego");
 
-                    // Buscar el color asociado a este puerto y añadirlo al JSONObject estadoJuego
-                    // Asumiendo que tienes una manera de buscar el color por puerto.
-                    Color color = buscarColorPorPuerto(clientSocket.getPort());
-                    estadoJuego.put("color", color.getRGB());
+                            // Añadir el puerto al JSONObject estadoJuego
+                            estadoJuego.put("puerto", clientSocket.getPort());
 
-                    // Buscar las líneas asociadas a este puerto y añadirlas al JSONObject estadoJuego
-                    // Asumiendo que tienes una manera de buscar las líneas por puerto.
-                    List<Line> lineList = buscarLineasPorPuerto(clientSocket.getPort());
-                    JSONArray lineas = new JSONArray();
-                    for (Line currentLine : lineList) {
-                        // Suponiendo que tienes un método para convertir un objeto Line a JSONObject
-                        JSONObject currentJsonLine = currentLine.toJsonObject();
-                        lineas.put(currentJsonLine);
+                            // Buscar el color asociado a este puerto y añadirlo al JSONObject estadoJuego
+                            // Asumiendo que tienes una manera de buscar el color por puerto.
+                            Color color1 = buscarColorPorPuerto(clientSocket.getPort());
+                            estadoJuego.put("color", color1.getRGB());
+
+                            // Buscar las líneas asociadas a este puerto y añadirlas al JSONObject estadoJuego
+                            // Asumiendo que tienes una manera de buscar las líneas por puerto.
+                            List<Line> lineList = buscarLineasPorPuerto(clientSocket.getPort());
+                            JSONArray lineas = new JSONArray();
+                            for (Line currentLine : lineList) {
+                                // Suponiendo que tienes un método para convertir un objeto Line a JSONObject
+                                JSONObject currentJsonLine = currentLine.toJsonObject();
+                                lineas.put(currentJsonLine);
+                            }
+                            estadoJuego.put("lineas", lineas);
+
+
+                            // Enviar el JSONObject estadoJuego de vuelta al cliente.
+                            out.writeUTF(estadoJuego.toString());
+                            break;
+                        default:
+                            System.err.println("Tipo de mensaje desconocido: " + tipo);
                     }
-                    estadoJuego.put("lineas", lineas);
-
-
-                        // Enviar el JSONObject estadoJuego de vuelta al cliente.
-                    out.writeUTF(estadoJuego.toString());
-                    break;
-                    default:
-                        System.err.println("Tipo de mensaje desconocido: " + tipo);
                 }
-            } catch (IOException e) {
+            } catch(IOException e){
                 e.printStackTrace();
             }
         }
     }
-
     public void startServer() {
         System.out.println("Iniciando servidor...");
         generateDots();
