@@ -935,8 +935,12 @@ Aqui empieza la logica de los jsons y colores etc.
                             lines.add(LineaEnviadaPorCliente);
                             redraw();
 
+
                             // Enviar la línea a todos los clientes
                             sendLineToAllClients(LineaEnviadaPorCliente);
+
+
+
                             break;
                         case "CuadradoEnviadoPorCliente":
                            System.out.println("Mensaje de tipo CuadradoEnviadoPorCliente recibido");
@@ -963,68 +967,7 @@ Aqui empieza la logica de los jsons y colores etc.
                             sendSquareToAllClients(square, color);
 
                             break;
-                        //                       Player playerInstance = null;
-                        //                        for (Player player : players) {
-                        //                            if (player.getSocket().equals(clientSocket)) {
-                        //                                playerInstance = player;
-                        //                                break;
-                        //                            }
-                        //                        }
-                        //                        if (playerInstance != null) {
-                        //                            // ...
-                        //                        } else {
-                        //                            // Si playerInstance es nulo, se debería añadir el jugador a la lista players
-                        //                            Color playerColor = getNextPlayerColor();
-                        //                            Player player = new Player(playerColor, clientSocket);
-                        //                            players.add(player);
-                        //                            playerQueue.enqueue(player);
-                        //                            System.out.println("Cliente conectado. Color asignado: " + playerColor);
-                        //                        }
-                        //
-                        //                        if (playerInstance != null) {
-                        //                            Color playerColor = playerInstance.getColor();
-                        //                            if (playerColor != null) {
-                        //                                line.lineColor = playerColor.getRGB();
-                        //                            } else {
-                        //                                // Si playerColor es nulo, asigna un color predeterminado al primer jugador.
-                        //                                if (players.isEmpty()) {
-                        //                                    Color defaultColor = Color.RED; // Puedes elegir el color predeterminado que desees.
-                        //                                    line.lineColor = defaultColor.getRGB();
-                        //                                } else {
-                        //                                    // Manejo de caso donde no es el primer jugador.
-                        //                                    // Asigna colores de la lista "colors" a los jugadores subsiguientes.
-                        //                                    // Asegúrate de tener una lista de colores disponibles en "coloresDisponibles".
-                        //
-                        //                                    if (!coloresDisponibles.isEmpty()) {
-                        //                                        // Obtén el próximo color disponible desde la lista de colores disponibles.
-                        //                                        Color nextPlayerColor = coloresDisponibles.poll();
-                        //
-                        //                                        // Asigna el color al jugador.
-                        //                                        line.lineColor = nextPlayerColor.getRGB();
-                        //                                    } else {
-                        //                                        // Manejo del caso donde te has quedado sin colores disponibles.
-                        //                                        // Puedes generar un mensaje de error o manejarlo de la manera que prefieras.
-                        //                                    }
-                        //                                }
-                        //                            }
-                        //                        } else {
-                        //                            // Manejo de caso donde playerInstance es nulo
-                        //                            // Aquí debes manejar el caso donde no se encuentra una instancia de jugador válida.
-                        //                        }
-                        //
-                        //
-                        //
-                        //                        lines.add(line);
-                        //                        // Asignar colores a los clientes en el orden en que se conectan
-                        //                        if (!gameStarted) {
-                        //                            Color playerColor = getNextPlayerColor();
-                        //                            Player player = new Player(playerColor, clientSocket);
-                        //                            players.add(player);
-                        //                            playerQueue.enqueue(player);
-                        //                            System.out.println("Cliente conectado. Color asignado: " + playerColor);
-                        //                        } else {
-                        //                            System.out.println("La partida ha comenzado. Cliente en espera.");
-                        //                        }
+
                         case "solicitarEstado":
                             // Manejar mensaje de solicitarEstado
                             // Aquí puedes enviar de vuelta al cliente el estado actual del juego.

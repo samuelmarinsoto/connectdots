@@ -55,6 +55,8 @@ public class Cliente extends PApplet implements Runnable {
     private Color clientColor = Color.BLACK; // o cualquier otro color predeterminado
     LinkedListCustom<Square> completedSquares = new LinkedListCustom<>();
 
+    Boolean turno =  false;
+
     static class Node<T> {
         T value;
         Node<T> next;
@@ -159,16 +161,7 @@ public class Cliente extends PApplet implements Runnable {
 
         Thread hilo = new Thread(this);
         hilo.start();
-//
-//            // Programar el pull cada X segundos (ajusta el valor según tu necesidad)
-//            Timer timer = new Timer();
-//            int pullIntervalSeconds = 5; // Ejemplo: pull cada 5 segundos
-//            timer.scheduleAtFixedRate(new TimerTask() {
-//                @Override // Asegúrate de que estás usando @Override correctamente
-//                public void run() {
-//                    pullGameStateFromServer();
-//                }
-//            }, 0, pullIntervalSeconds * 1000); // Convertir segundos a milisegundos
+
     }
 
     public void settings() {
@@ -238,56 +231,7 @@ public class Cliente extends PApplet implements Runnable {
         // Retornar la representación en cadena del objeto JSONObject de la línea
         return jsonLine.toString();
     }
-//    public void send(String hola){
-//            try {
-//                out.writeUTF(hola);
-//            }  catch(Exception ex){
-//                System.out.println(ex);
-//            }
-//        }
-//    public void sendLinesAndDots() {
-//        JSONArray jsonLines = new JSONArray();
-//        for (Line line : lines) {
-//            jsonLines.put(lineToJson(line));
-//        }
-//        send(jsonLines.toString());
-//    }
-//
-//    public JSONObject lineToJson(Line line) {
-//        JSONObject json = new JSONObject();
-//        json.put("dot1", dotToJson(line.dot1));
-//        json.put("dot2", dotToJson(line.dot2));
-//        return json;
-//    }
-//
-//    public JSONObject dotToJson(Dot dot) {
-//        JSONObject json = new JSONObject();
-//        json.put("x", dot.x);
-//        json.put("y", dot.y);
-//        json.put("row", dot.row);
-//        json.put("col", dot.col);
-//        return json;
-//    }
-//    public Line jsonLineToLine(JSONObject json) {
-//            JSONObject jsonDot1 = json.getJSONObject("dot1");
-//            JSONObject jsonDot2 = json.getJSONObject("dot2");
-//
-//            Dot dot1 = jsonDotToDot(jsonDot1); // Asumiendo que tienes un método jsonDotToDot
-//            Dot dot2 = jsonDotToDot(jsonDot2); // Asumiendo que tienes un método jsonDotToDot
-//
-//            return new Line(dot1, dot2);
-//        }
-//
-//        public Dot jsonDotToDot(JSONObject json) {
-//            float x = (float) json.getDouble("x");
-//            float y = (float) json.getDouble("y");
-//            int row = json.getInt("row");
-//            int col = json.getInt("col");
-//
-//            return new Dot(x, y, dotSize, row, col); // Asumiendo que dotSize es el tamaño de tus puntos
-//        }
 
-    //Metodos auxiliares de logica del juego
 
 
     public boolean lineExists(Dot d1, Dot d2) {
@@ -336,22 +280,7 @@ public class Cliente extends PApplet implements Runnable {
         return marginTop + col * spacingY;
     }
 //    private void pullGameStateFromServer() {
-//        try {
-//            // Enviar solicitud al servidor para obtener el estado del juego
-//            JSONObject request = new JSONObject();
-//            request.put("tipo", "solicitarEstado");
-//            request.put("action", "pull");
-//            out.writeUTF(request.toString());
-//
-//            // Leer la respuesta del servidor
-//            String response = in.readUTF();
-//            // Procesar la respuesta (puede ser un JSON que contiene el estado del juego)
-//            // Aquí debes actualizar la representación local del juego con la información recibida
-//            // y luego volver a dibujar la pantalla.
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//    }
+
 
     //CLASES INTERNAS
     class Dot {
