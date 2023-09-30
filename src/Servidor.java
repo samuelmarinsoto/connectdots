@@ -1,6 +1,5 @@
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.EOFException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.*;
@@ -8,11 +7,11 @@ import java.awt.Color;
 import java.util.LinkedList;
 import processing.core.PApplet;
 import java.io.IOException;
-import java.net.SocketException;
+
 import org.json.JSONObject;
 import javax.swing.JOptionPane;
 import org.json.JSONException;
-import java.net.ConnectException;
+
 import org.json.JSONArray;
 
 public class Servidor extends PApplet {
@@ -28,6 +27,7 @@ public class Servidor extends PApplet {
     LinkedListCustom<Dot> selectedDots = new LinkedListCustom<Dot>();
     private List<Player> players = new ArrayList<>();
     // Asumiendo que estás dentro de un método de la clase 'Servidor'
+    List<Socket> allClientSockets = new ArrayList<>();
 
     String errorMsg = "";
     private Queue<Player> playerQueue = new Queue<>();
@@ -37,6 +37,9 @@ public class Servidor extends PApplet {
     private  ArrayList<Color> colors = new ArrayList<>(
             List.of(Color.RED, Color.BLUE, Color.GREEN, Color.YELLOW, Color.CYAN));
     private LinkedList<Color> coloresDisponibles = new LinkedList<>(List.of(Color.RED, Color.BLUE, Color.GREEN, Color.YELLOW, Color.CYAN));
+    LinkedListCustom<Square> completedSquares = new LinkedListCustom<>();
+    Map<Integer, Player> colorToPlayerMap = new HashMap<>();
+
     // Definición de la clase Nodo para la cola
     private static class Node<T> {
         T value;
@@ -47,7 +50,6 @@ public class Servidor extends PApplet {
             this.next = null;
         }
     }
-
     // Definición de la clase Cola
     private static class Queue<T> {
         Node<T> front, rear;
@@ -91,7 +93,6 @@ public class Servidor extends PApplet {
             return size;
         }
     }
-
     static class LinkedListCustom<T> implements Iterable<T> {
         Node<T> head;
         int size;
@@ -99,6 +100,13 @@ public class Servidor extends PApplet {
         LinkedListCustom() {
             head = null;
             size = 0;
+        }
+
+        public boolean isEmpty() {
+            return size() == 0;
+        }
+        public int size() {
+            return size;
         }
 
         void add(T value) {
@@ -196,7 +204,20 @@ public class Servidor extends PApplet {
         lines = new LinkedListCustom<>();
         generateDots();
     }
+    /*
+    Métodos para convertir entre coordenadas de la ventana y coordenadas de la matriz
+     */
+    static int convertRowToX(int row) {
+        int spacingX = 40; // Distancia entre los puntos en el eje x
+        int marginLeft = 20; // Margen inicial en el eje x
+        return marginLeft + row * spacingX;
+    }
 
+    static int convertColToY(int col) {
+        int spacingY = 40; // Distancia entre los puntos en el eje y
+        int marginTop = 20; // Margen inicial en el eje y
+        return marginTop + col * spacingY;
+    }
     /*
     Métodos para inicializar y ejecutar el servidor
      */
@@ -207,7 +228,7 @@ public class Servidor extends PApplet {
     // BUCLE PARA PINTAR LAS COSAS
     public void draw() {
         background(255);
-        for (Square sq : squares) {
+        for (Square sq : completedSquares) {
             sq.display();
         }
 
@@ -226,21 +247,10 @@ public class Servidor extends PApplet {
             fill(150);
 //            text(errorMsg, 20, 90);
         }
-    }
-    /*
-    Métodos para convertir entre coordenadas de la ventana y coordenadas de la matriz
-     */
-    static int convertRowToX(int row) {
-        int spacingX = 40; // Distancia entre los puntos en el eje x
-        int marginLeft = 20; // Margen inicial en el eje x
-        return marginLeft + row * spacingX;
+
+
     }
 
-    static int convertColToY(int col) {
-        int spacingY = 40; // Distancia entre los puntos en el eje y
-        int marginTop = 20; // Margen inicial en el eje y
-        return marginTop + col * spacingY;
-    }
 
     /*
     AQUÍ ESTÁN LOS OBJETOS QUE SE USAN EN EL JUEGO
@@ -312,43 +322,98 @@ public class Servidor extends PApplet {
         String getUniqueRepresentation() {
             return dot1.getIdentifier() + "-" + dot2.getIdentifier();
         }
+        @Override
+        public String toString() {
+            return "Line from " + dot1 + " to " + dot2 + " with color: " + lineColor;
+        }
     }
 
     private class Square {
         Dot topLeft;
         Dot bottomRight;
         int size;
-        int color = -1;
+        int color; // Color en formato RGB
+        int port;  // Puerto del cliente que envió el cuadrado
 
-        Square(Dot topLeft, Dot bottomRight) {
+        public Square(Dot topLeft, Dot bottomRight, int port) {
             this.topLeft = topLeft;
             this.bottomRight = bottomRight;
-            this.size = (int) (bottomRight.col - topLeft.col);
+            this.port = port;
+            this.size = Math.abs(bottomRight.col - topLeft.col);
         }
+        // Constructor using a JSONObject
+        public Square(JSONObject jsonSquare) {
+            JSONObject jsonTopLeft = jsonSquare.getJSONObject("topLeft");
+            JSONObject jsonBottomRight = jsonSquare.getJSONObject("bottomRight");
 
+            this.topLeft = new Dot(jsonTopLeft.getInt("row"), jsonTopLeft.getInt("col"));
+            this.bottomRight = new Dot(jsonBottomRight.getInt("row"), jsonBottomRight.getInt("col"));
+            this.port = jsonSquare.getInt("port");
+            this.color = jsonSquare.getInt("color");
+            this.size = Math.abs(bottomRight.col - topLeft.col);
+        }
         boolean isClosed(HashSet<String> lineSet) {
-            // Implementación del método isClosed aquí...
-            return false;
-        }
+        Dot topRight = getDotAtRowCol(topLeft.row, bottomRight.col);
+        Dot bottomLeft = getDotAtRowCol(bottomRight.row, topLeft.col);
 
-        void setColor(int playerColor) {
-            this.color = playerColor;
-        }
+        // Crear una representación única de cada línea que debería estar presente para cerrar el cuadrado.
+        String line1 = topLeft.toString() + topRight.toString();
+        String line2 = topLeft.toString() + bottomLeft.toString();
+        String line3 = bottomLeft.toString() + bottomRight.toString();
+        String line4 = bottomRight.toString() + topRight.toString();
 
-        void display() {
-            if (color != -1) {
-                fill(color);
-                int x = Servidor.convertRowToX(topLeft.row);
-                int y = Servidor.convertColToY(topLeft.col);
-                rect(x, y, size, size);
+        // Verificar si todas las líneas están presentes en el conjunto.
+        return lineSet.contains(line1) && lineSet.contains(line2) && lineSet.contains(line3) && lineSet.contains(line4);
+    }
+    void display() {
+        if (color != -1) {
+            System.out.println("Drawing square with color: " + color);
+            fill(color);
+            int x = Servidor.convertRowToX(topLeft.row);
+            int y = Servidor.convertColToY(topLeft.col);
+            rect(x, y, size, size);
+        } else {
+            System.out.println("Color is -1, square is not drawn");
+        }
+    }
+
+
+        // Método para obtener el color en función del puerto.
+        // Puedes modificar esta función según tu lógica para asociar puertos y colores.
+        private int getColorFromPort(int port) {
+            // Ejemplo: supongamos que el puerto 5000 corresponde al color rojo
+            if(port == 5000) {
+                return color(255, 0, 0); // Rojo en formato RGB
             }
+            // Añadir más reglas aquí según sea necesario
+            return -1; // Color por defecto (o puedes lanzar una excepción si un puerto no válido es inaceptable)
+        }
+
+        // Método para convertir el cuadrado a un objeto JSON
+        public JSONObject toJsonObject() {
+            JSONObject jsonSquare = new JSONObject();
+
+            JSONObject jsonTopLeft = new JSONObject();
+            jsonTopLeft.put("row", topLeft.row);
+            jsonTopLeft.put("col", topLeft.col);
+
+            JSONObject jsonBottomRight = new JSONObject();
+            jsonBottomRight.put("row", bottomRight.row);
+            jsonBottomRight.put("col", bottomRight.col);
+
+            jsonSquare.put("topLeft", jsonTopLeft);
+            jsonSquare.put("bottomRight", jsonBottomRight);
+            jsonSquare.put("color", color); // Color RGB como un entero
+            jsonSquare.put("port", port);   // Puerto del cliente que envió el cuadrado
+
+            return jsonSquare;
         }
     }
 
     public class Player {
         private Color color;
         private Socket socket;
-
+        private int score;
         public Player(Color color, Socket socket) {
             this.color = color;
             this.socket = socket;
@@ -360,6 +425,13 @@ public class Servidor extends PApplet {
 
         public Socket getSocket() {
             return socket;
+        }
+        public int getScore() {
+            return score;
+        }
+
+        public void incrementScore() {
+            this.score++;
         }
     }
 
@@ -399,12 +471,12 @@ public class Servidor extends PApplet {
 
         return lineExists(topLeft, topRight) && lineExists(topLeft, bottomLeft) && lineExists(bottomRight, bottomLeft) && lineExists(bottomRight, topRight);
     }
-    public LinkedListCustom<Square> getCompletedSquares(Line line) {
+    public LinkedListCustom<Square> getCompletedSquares(Line line, int port) {
         LinkedListCustom<Square> completedSquares = new LinkedListCustom<>();
 
         if (line.dot1.row == line.dot2.row) { // línea horizontal
-            Square above = getSquareAbove(line.dot1, line.dot2);
-            Square below = getSquareBelow(line.dot1, line.dot2);
+            Square above = getSquareAbove(line.dot1, line.dot2, port);
+            Square below = getSquareBelow(line.dot1, line.dot2, port);
 
             if (above != null) {
                 completedSquares.add(above);
@@ -414,8 +486,8 @@ public class Servidor extends PApplet {
             }
 
         } else { // línea vertical
-            Square left = getSquareLeft(line.dot1, line.dot2);
-            Square right = getSquareRight(line.dot1, line.dot2);
+            Square left = getSquareLeft(line.dot1, line.dot2, port);
+            Square right = getSquareRight(line.dot1, line.dot2, port);
 
             if (left != null) {
                 completedSquares.add(left);
@@ -427,6 +499,8 @@ public class Servidor extends PApplet {
 
         return completedSquares;
     }
+
+
     private boolean checkSquareAbove(Dot left, Dot right) {
         Dot topLeft = getDotAtRowCol(left.row - 1, left.col);
         Dot topRight = getDotAtRowCol(right.row - 1, right.col);
@@ -481,7 +555,7 @@ public class Servidor extends PApplet {
         }
         return null;
     }
-    private Square getSquareAbove(Dot d1, Dot d2) {
+    private Square getSquareAbove(Dot d1, Dot d2, int port) {
         if (d1.row != d2.row) {
             return null; // Not a horizontal line
         }
@@ -496,11 +570,11 @@ public class Servidor extends PApplet {
         Dot upperRight = getDotAtRowCol(topRight.row - 1, topRight.col);
 
         if (upperLeft != null && upperRight != null && doesSquareExist(upperLeft, topRight)) {
-            return new Square(upperLeft, topRight);
+            return new Square(upperLeft, topRight, port);
         }
         return null;
     }
-    private Square getSquareBelow(Dot d1, Dot d2) {
+    private Square getSquareBelow(Dot d1, Dot d2, int port) {
         if (d1.row != d2.row) {
             return null; // Not a horizontal line
         }
@@ -515,11 +589,11 @@ public class Servidor extends PApplet {
         Dot lowerRight = getDotAtRowCol(bottomRight.row + 1, bottomRight.col);
 
         if (lowerLeft != null && lowerRight != null && doesSquareExist(bottomLeft, lowerRight)) {
-            return new Square(bottomLeft, lowerRight);
+            return new Square(bottomLeft, lowerRight, port);
         }
         return null;
     }
-    private Square getSquareLeft(Dot d1, Dot d2) {
+    private Square getSquareLeft(Dot d1, Dot d2, int port) {
         if (d1.col != d2.col) {
             return null; // Not a vertical line
         }
@@ -534,11 +608,11 @@ public class Servidor extends PApplet {
         Dot leftBottom = getDotAtRowCol(bottom.row, bottom.col - 1);
 
         if (leftTop != null && leftBottom != null && doesSquareExist(leftTop, bottom)) {
-            return new Square(leftTop, bottom);
+            return new Square(leftTop, bottom, port);
         }
         return null;
     }
-    private Square getSquareRight(Dot d1, Dot d2) {
+    private Square getSquareRight(Dot d1, Dot d2, int port) {
         if (d1.col != d2.col) {
             return null; // Not a vertical line
         }
@@ -553,47 +627,18 @@ public class Servidor extends PApplet {
         Dot rightBottom = getDotAtRowCol(bottom.row, bottom.col + 1);
 
         if (rightTop != null && rightBottom != null && doesSquareExist(rightTop, bottom)) {
-            return new Square(top, rightBottom);
+            return new Square(top, rightBottom, port);
         }
         return null;
     }
-/////////////////////////////////////////////////////////////////////////////////////////////////////
-    //    // Comunicaciones
-//    public void handleClientAction(String action) {
-//    // Parsear la acción recibida (posiblemente en formato JSON)
-//
-//    // Realizar los cálculos y verificaciones de la lógica del juego
-//    if (firstDot == null) {
-//        firstDot = currentDot;
-////        firstDot.isSelected = true;
-//    } else {
-//        if (areAdjacentDots(firstDot, currentDot) && !lineExists(firstDot, currentDot)) {
-//            Line newLine = new Line(firstDot, currentDot);
-//            lines.add(newLine);
-//            LinkedListCustom<Square> completedSquares = getCompletedSquares(newLine);
-//
-//            // ... (Resto de la lógica del juego)
-//
-//            // Enviar el estado actualizado del juego a todos los clientes conectados
-//            sendUpdatedGameStateToClients();
-//        } else {
-//            errorMsg = "Selecciona puntos adyacentes o puntos entre los que no exista una línea!";
-////            firstDot.isSelected = false;
-//            firstDot = null;
-//        }
-//    }
-//}
-//
-//public void sendUpdatedGameStateToClients() {
-//    // Enviar el estado actualizado del juego a todos los clientes conectados.
-//}
-
-     // Función para asignar colores a los clientes en orden
 
 
 /*
 Aqui empieza la logica de los jsons y colores etc.
  */
+
+
+
     public JSONObject toJsonObject() {
         JSONObject json = new JSONObject();
         // Añade los campos de la línea al objeto json
@@ -602,12 +647,16 @@ Aqui empieza la logica de los jsons y colores etc.
         // json.put("end", this.end);
         return json;
     }
-    private Dot jsonDotToDot(JSONObject jsonDot) {
-        int row = jsonDot.getInt("row");
-        int col = jsonDot.getInt("col");
+    public Dot jsonDotToDot(JSONObject json) {
+        // Extraer las propiedades fila y columna del objeto JSON
+        int row = json.getInt("row");
+        int col = json.getInt("col");
+
+        // Devolver una nueva instancia de Dot utilizando las propiedades
         return new Dot(row, col);
     }
-    private Line jsonLineToLine(JSONObject jsonLine, int port) {
+
+    private Line jsonLineToLine(JSONObject jsonLine, int port, int colorRGB) {
         // Extraer los objetos JSON para dot1 y dot2
         JSONObject jsonDot1 = jsonLine.getJSONObject("dot1");
         JSONObject jsonDot2 = jsonLine.getJSONObject("dot2");
@@ -623,8 +672,110 @@ Aqui empieza la logica de los jsons y colores etc.
         Dot dot2 = getDotAtRowCol(row2, col2);
 
         // Crear y retornar un nuevo objeto Line con los puntos dot1 y dot2
-        return new Line(dot1, dot2, port);
+        Line line = new Line(dot1, dot2, port);
+        line.lineColor = colorRGB;
+        return line;
     }
+    public JSONObject lineToJson(Line line) {
+        JSONObject jsonLine = new JSONObject();
+
+        JSONObject jsonDot1 = new JSONObject();
+
+        jsonDot1.put("row", line.dot1.row);
+        jsonDot1.put("col", line.dot1.col);
+
+        JSONObject jsonDot2 = new JSONObject();
+        jsonDot2.put("row", line.dot2.row);
+        jsonDot2.put("col", line.dot2.col);
+
+        jsonLine.put("tipo", "LineaEnviadaPorCliente");
+        jsonLine.put("dot1", jsonDot1);
+        jsonLine.put("dot2", jsonDot2);
+        jsonLine.put("color", line.lineColor);
+
+        return jsonLine;
+    }
+    public void sendLineToAllClients(Line line) {
+        JSONObject jsonLine = lineToJson(line);
+        // Cambiar "LineaEnviadaPorCliente" a "LineaRecibida" para que los clientes sepan que deben dibujar la línea.
+        jsonLine.put("tipo", "LineaRecibida");
+        String lineString = jsonLine.toString();
+
+        for (Player player : players) {
+            try {
+                DataOutputStream out = new DataOutputStream(player.getSocket().getOutputStream());
+                out.writeUTF(lineString);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public Square jsonToSquare(JSONObject jsonSquare, int port) {
+        // Obtener los objetos JSON para los puntos superior izquierdo e inferior derecho
+        JSONObject jsonTopLeft = jsonSquare.getJSONObject("topLeft");
+        JSONObject jsonBottomRight = jsonSquare.getJSONObject("bottomRight");
+
+        // Convertir los objetos JSON de los puntos a objetos Dot
+        Dot topLeft = jsonDotToDot(jsonTopLeft);
+        Dot bottomRight = jsonDotToDot(jsonBottomRight);
+
+        // Crear y devolver una nueva instancia de Square utilizando los puntos y el puerto
+        return new Square(topLeft, bottomRight, port);
+    }
+    private JSONObject dotToJson(Dot dot) {
+        JSONObject json = new JSONObject();
+        json.put("row", dot.row);
+        json.put("col", dot.col);
+        return json;
+    }
+
+    private JSONObject squareToJson(Square square, int color) {
+        JSONObject json = new JSONObject();
+        json.put("tipo", "CuadradoCompletado");
+        json.put("topLeft", dotToJson(square.topLeft));
+        json.put("bottomRight", dotToJson(square.bottomRight));
+        json.put("color", color);
+        return json;
+}
+
+    private void sendSquareToAllClients(Square square, int color) {
+        // Convierte el cuadrado a JSON
+        JSONObject jsonSquare = squareToJson(square, color);
+
+        // Envia a todos los clientes
+        for (Socket clientSocket : allClientSockets) {
+            try {
+                DataOutputStream out = new DataOutputStream(clientSocket.getOutputStream());
+                out.writeUTF(jsonSquare.toString());
+                out.flush();
+            } catch (IOException e) {
+                e.printStackTrace();
+                // Manejar la excepción, posiblemente eliminando el socket del cliente de la lista si la conexión se ha perdido
+            }
+        }
+    }
+
+    public void handleSquareReceived(JSONObject jsonSquare) {
+        try {
+            Square square = new Square(jsonSquare);
+
+            // Obtener el jugador basado en el color del cuadrado y actualizar la puntuación
+            Player player = colorToPlayerMap.get(square.color);
+            if (player != null) {
+                player.incrementScore();
+                // Puedes también notificar a todos los clientes sobre la puntuación actualizada
+                // si es necesario.
+            } else {
+                // Manejar el caso cuando no hay jugador para el color dado.
+                System.err.println("No player found for color: " + square.color);
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
+
     public void startGameCountdown() {
         elapsedTime = System.currentTimeMillis(); // Inicializar elapsedTime aquí
         Thread countdownThread = new Thread(() -> {
@@ -734,56 +885,51 @@ Aqui empieza la logica de los jsons y colores etc.
                             // Aquí se puede procesar el puerto recibido
                             System.out.println("Puerto recibido: " + puerto);
                             break;
-                        case "linea":
-                            int port = json.getInt("puerto");
-                            JSONObject jsonDot1 = json.getJSONObject("dot1");
-                            JSONObject jsonDot2 = json.getJSONObject("dot2");
-                            Dot dot1 = jsonDotToDot(jsonDot1);
-                            Dot dot2 = jsonDotToDot(jsonDot2);
-                            Line line = new Line(dot1, dot2, port);
-
-                            // Agregar mensaje de registro para verificar que la línea ha sido recibida
-                            System.out.println("Línea recibida: " + line.toString() + " desde el puerto: " + port);
-
-                            // Buscar el color asociado a este puerto
-                            Color color = buscarColorPorPuerto(port);
-                            if (color != null) {
-                                line.lineColor = color.getRGB();
-                            } else {
-                                // Manejar caso en el que no se encuentra un color para el puerto
-                                System.err.println("No seFes encontró color para el puerto: " + port);
-                            }
-                            lines.add(line);
-                            break;
                         case "LineaEnviadaPorCliente":
-                            System.out.println("Mensaje de tipo LineaEnviadaPorCliente recibido");
-
                             // Obtener el puerto y el objeto JSON de la línea
                             int PuertoDeRecepcionDeLinea = json.getInt("puerto");
                             JSONObject jsonLine = json.getJSONObject("linea");
+                            int lineColorRGB = json.getInt("color");  // Asumiendo que el color está como un entero RGB
 
                             // Convertir el objeto JSON a un objeto Line
-                            Line LineaEnviadaPorCliente = jsonLineToLine(jsonLine, PuertoDeRecepcionDeLinea);
-
-                            // Buscar el color asociado a este puerto
-                            Color colorLineaRecibida = buscarColorPorPuerto(PuertoDeRecepcionDeLinea);
-                            if (colorLineaRecibida != null) {
-                                LineaEnviadaPorCliente.lineColor = colorLineaRecibida.getRGB();
-                            } else {
-                                // Manejar caso en el que no se encuentra un color para el puerto
-                                System.err.println("No se encontró color para el puerto: " + PuertoDeRecepcionDeLinea);
-                            }
+                            Line LineaEnviadaPorCliente = jsonLineToLine(jsonLine, PuertoDeRecepcionDeLinea, lineColorRGB);
 
                             // Imprimir información de la línea recibida
                             System.out.println("Línea recibida: " + LineaEnviadaPorCliente.toString());
 
-                            // Añadir la línea a la lista de líneas
+                            // Añadir la línea a una lista (si es necesario) y repintar la ventana
                             lines.add(LineaEnviadaPorCliente);
-
-                            // Repintar la ventana
                             redraw();
-                        break;
-                        //                        Player playerInstance = null;
+
+                            // Enviar la línea a todos los clientes
+                            sendLineToAllClients(LineaEnviadaPorCliente);
+                            break;
+                        case "CuadradoEnviadoPorCliente":
+                           System.out.println("Mensaje de tipo CuadradoEnviadoPorCliente recibido");
+
+                            // Obtener el puerto y el objeto JSON del cuadrado
+                            int port = json.getInt("puerto");
+                            JSONObject jsonCuadrado = json.getJSONObject("cuadrado");
+
+                            // Convertir el objeto JSON a un objeto Square
+                            Square square = jsonToSquare(jsonCuadrado, port);
+
+                            // Incrementar el puntaje del jugador
+                            for (Player player : players) {
+                                if (player.getSocket().equals(clientSocket)) {
+                                    player.incrementScore();
+                                    break;
+                                }
+                            }
+                             // Obtener el color del cuadrado del JSON
+                            int color = jsonCuadrado.getInt("color");
+
+                            // Reenviar el cuadrado a todos los demás clientes
+                            // Reenviar el cuadrado a todos los demás clientes
+                            sendSquareToAllClients(square, color);
+
+                            break;
+                        //                       Player playerInstance = null;
                         //                        for (Player player : players) {
                         //                            if (player.getSocket().equals(clientSocket)) {
                         //                                playerInstance = player;
@@ -845,7 +991,6 @@ Aqui empieza la logica de los jsons y colores etc.
                         //                        } else {
                         //                            System.out.println("La partida ha comenzado. Cliente en espera.");
                         //                        }
-
                         case "solicitarEstado":
                             // Manejar mensaje de solicitarEstado
                             // Aquí puedes enviar de vuelta al cliente el estado actual del juego.
@@ -896,10 +1041,15 @@ Aqui empieza la logica de los jsons y colores etc.
                 try {
                     Socket clientSocket = server.accept();
                     lista_puertos.add(Integer.toString(clientSocket.getPort()));
+                    allClientSockets.add(clientSocket);
+
                     System.out.println("Cliente conectado: " + clientSocket.getRemoteSocketAddress());
                     System.out.println(coloresDisponibles);
                     Color playerColor = getNextPlayerColor();
                     Player player = new Player(playerColor, clientSocket);
+
+                    colorToPlayerMap.put(playerColor.getRGB(), player);
+
                     players.add(player);
                     playerQueue.enqueue(player);
                     if (playerQueue.size() == 1) {
@@ -936,6 +1086,7 @@ Aqui empieza la logica de los jsons y colores etc.
             e.printStackTrace();
         }
     }
+
 
     public static void main(String[] args) {
         PApplet.main("Servidor");
