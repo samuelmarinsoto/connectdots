@@ -1,3 +1,8 @@
+/**
+ * Librerias usadas
+ */
+
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.net.ServerSocket;
@@ -13,6 +18,12 @@ import javax.swing.JOptionPane;
 import org.json.JSONException;
 
 import org.json.JSONArray;
+
+
+/**
+ * Variables gobales
+ * listas de los objetos
+ */
 
 public class Servidor extends PApplet {
     // Variables de estado del juego
@@ -159,7 +170,10 @@ public class Servidor extends PApplet {
     Aqui se ingresan el numero de filas y columnas
      */
 
-
+    /**
+     * Se fija si ya terminaron los puntos, por lo tanto, es el final del juego
+     *
+     */
     public boolean isMaxLinesReached(int rows, int cols) {
         int maxLines = (rows - 1) * cols + rows * (cols - 1);
         boolean maxReached = lines.size() == maxLines;
@@ -191,6 +205,11 @@ public class Servidor extends PApplet {
 
         return maxReached;
     }
+
+
+    /**
+     * todos principales de processing
+     */
     public void settings() {
     // Solicitar al usuario que ingrese el número de filas y columnas, separados por coma (,):
     String input;
@@ -286,7 +305,7 @@ public class Servidor extends PApplet {
     }
 
 
-    /*
+    /**
     AQUÍ ESTÁN LOS OBJETOS QUE SE USAN EN EL JUEGO
      */
     private class Dot {
@@ -375,7 +394,11 @@ public class Servidor extends PApplet {
             this.port = port;
             this.size = Math.abs(bottomRight.col - topLeft.col);
         }
-        // Constructor using a JSONObject
+
+        /**
+         * Constructor using a JSONObject
+          */
+
         public Square(JSONObject jsonSquare) {
             JSONObject jsonTopLeft = jsonSquare.getJSONObject("topLeft");
             JSONObject jsonBottomRight = jsonSquare.getJSONObject("bottomRight");
@@ -390,13 +413,19 @@ public class Servidor extends PApplet {
         Dot topRight = getDotAtRowCol(topLeft.row, bottomRight.col);
         Dot bottomLeft = getDotAtRowCol(bottomRight.row, topLeft.col);
 
-        // Crear una representación única de cada línea que debería estar presente para cerrar el cuadrado.
+
+            /**
+             * Crear una representación única de cada línea que debería estar presente para cerrar el cuadrado.
+              */
+
         String line1 = topLeft.toString() + topRight.toString();
         String line2 = topLeft.toString() + bottomLeft.toString();
         String line3 = bottomLeft.toString() + bottomRight.toString();
         String line4 = bottomRight.toString() + topRight.toString();
 
-        // Verificar si todas las líneas están presentes en el conjunto.
+            /**Verificar si todas las líneas están presentes en el conjunto.
+             *
+             */
         return lineSet.contains(line1) && lineSet.contains(line2) && lineSet.contains(line3) && lineSet.contains(line4);
     }
     void display() {
@@ -412,8 +441,11 @@ public class Servidor extends PApplet {
     }
 
 
-        // Método para obtener el color en función del puerto.
-        // Puedes modificar esta función según tu lógica para asociar puertos y colores.
+        /** Método para obtener el color en función del puerto.
+         * Puedes modificar esta función según tu lógica para asociar puertos y colores.
+
+         */
+
         private int getColorFromPort(int port) {
             // Ejemplo: supongamos que el puerto 5000 corresponde al color rojo
             if(port == 5000) {
@@ -470,7 +502,9 @@ public class Servidor extends PApplet {
     }
 
 
-    //Metodos de inicializacion
+    /**Metodos de inicializacion
+     *
+     */
     public void generateDots() {
         System.out.println("Generando puntos...");
         for (int i = 0; i < rows; i++) {
@@ -482,7 +516,12 @@ public class Servidor extends PApplet {
 
 
     ////////////////////////////////////////////
-    //Metodos de logica del juego
+
+    /**Metodos de logica del juego
+
+     */
+
+
     public boolean lineExists(Dot d1, Dot d2) {
         for (Line line : lines) {
             if ((line.dot1 == d1 && line.dot2 == d2) || (line.dot1 == d2 && line.dot2 == d1)) {
@@ -667,7 +706,7 @@ public class Servidor extends PApplet {
     }
 
 
-/*
+/**
 Aqui empieza la logica de los jsons y colores etc.
  */
 
@@ -794,12 +833,14 @@ Aqui empieza la logica de los jsons y colores etc.
         try {
             Square square = new Square(jsonSquare);
 
-            // Obtener el jugador basado en el color del cuadrado y actualizar la puntuación
+            /** Obtener el jugador basado en el color del cuadrado y actualizar la puntuación
+             *
+             */
             Player player = colorToPlayerMap.get(square.color);
             if (player != null) {
                 player.incrementScore();
-                // Puedes también notificar a todos los clientes sobre la puntuación actualizada
-                // si es necesario.
+                /** Puedes también notificar a todos los clientes sobre la puntuación actualizada
+                 si es necesario.*/
             } else {
                 // Manejar el caso cuando no hay jugador para el color dado.
                 System.err.println("No player found for color: " + square.color);
@@ -853,7 +894,9 @@ Aqui empieza la logica de los jsons y colores etc.
     }
     private Color getNextPlayerColor() {
             if (coloresDisponibles.isEmpty()) {
-                // Si se agotaron los colores disponibles, reiniciar la lista de colores
+                /** Si se agotaron los colores disponibles, reiniciar la lista de colores
+                 *
+                 */
                 coloresDisponibles.addAll(colors);
             }
             Color playerColor = coloresDisponibles.poll(); // Obtener el siguiente color disponible
@@ -925,18 +968,26 @@ Aqui empieza la logica de los jsons y colores etc.
                             JSONObject jsonLine = json.getJSONObject("linea");
                             int lineColorRGB = json.getInt("color");  // Asumiendo que el color está como un entero RGB
 
-                            // Convertir el objeto JSON a un objeto Line
+                            /** Convertir el objeto JSON a un objeto Line
+                             *
+                             */
                             Line LineaEnviadaPorCliente = jsonLineToLine(jsonLine, PuertoDeRecepcionDeLinea, lineColorRGB);
 
-                            // Imprimir información de la línea recibida
+                            /** Imprimir información de la línea recibida
+                             *
+                             */
                             System.out.println("Línea recibida: " + LineaEnviadaPorCliente.toString());
 
-                            // Añadir la línea a una lista (si es necesario) y repintar la ventana
+                            /** Añadir la línea a una lista (si es necesario) y repintar la ventana
+                             *
+                             */
                             lines.add(LineaEnviadaPorCliente);
                             redraw();
 
 
-                            // Enviar la línea a todos los clientes
+                            /** Enviar la línea a todos los clientes
+                             *
+                             */
                             sendLineToAllClients(LineaEnviadaPorCliente);
 
 
@@ -945,11 +996,15 @@ Aqui empieza la logica de los jsons y colores etc.
                         case "CuadradoEnviadoPorCliente":
                            System.out.println("Mensaje de tipo CuadradoEnviadoPorCliente recibido");
 
-                            // Obtener el puerto y el objeto JSON del cuadrado
+                            /** Obtener el puerto y el objeto JSON del cuadrado
+                             *
+                             */
                             int port = json.getInt("puerto");
                             JSONObject jsonCuadrado = json.getJSONObject("cuadrado");
 
-                            // Convertir el objeto JSON a un objeto Square
+                            /** Convertir el objeto JSON a un objeto Square
+                             *
+                             */
                             Square square = jsonToSquare(jsonCuadrado, port);
 
                             // Incrementar el puntaje del jugador
@@ -959,7 +1014,9 @@ Aqui empieza la logica de los jsons y colores etc.
                                     break;
                                 }
                             }
-                             // Obtener el color del cuadrado del JSON
+                            /** Obtener el color del cuadrado del JSON
+                             *
+                             */
                             int color = jsonCuadrado.getInt("color");
 
                             // Reenviar el cuadrado a todos los demás clientes
@@ -969,14 +1026,17 @@ Aqui empieza la logica de los jsons y colores etc.
                             break;
 
                         case "solicitarEstado":
-                            // Manejar mensaje de solicitarEstado
-                            // Aquí puedes enviar de vuelta al cliente el estado actual del juego.
+                            /** Manejar mensaje de solicitarEstado, Aquí puedes enviar de vuelta al cliente el estado actual del juego.
+                             *
+                             */
 
                             // Crear un JSONObject que contenga toda la información del estado del juego.
                             JSONObject estadoJuego = new JSONObject();
                             estadoJuego.put("tipo", "estadoJuego");
 
-                            // Añadir el puerto al JSONObject estadoJuego
+                            /** Añadir el puerto al JSONObject estadoJuego
+                             *
+                             */
                             estadoJuego.put("puerto", clientSocket.getPort());
 
                             // Buscar el color asociado a este puerto y añadirlo al JSONObject estadoJuego
@@ -984,8 +1044,9 @@ Aqui empieza la logica de los jsons y colores etc.
                             Color color1 = buscarColorPorPuerto(clientSocket.getPort());
                             estadoJuego.put("color", color1.getRGB());
 
-                            // Buscar las líneas asociadas a este puerto y añadirlas al JSONObject estadoJuego
-                            // Asumiendo que tienes una manera de buscar las líneas por puerto.
+                            /** Buscar las líneas asociadas a este puerto y añadirlas al JSONObject estadoJuego, Asumiendo que tienes una manera de buscar las líneas por puerto.
+                             *
+                             */
                             List<Line> lineList = buscarLineasPorPuerto(clientSocket.getPort());
                             JSONArray lineas = new JSONArray();
                             for (Line currentLine : lineList) {
@@ -996,7 +1057,9 @@ Aqui empieza la logica de los jsons y colores etc.
                             estadoJuego.put("lineas", lineas);
 
 
-                            // Enviar el JSONObject estadoJuego de vuelta al cliente.
+                            /** Enviar el JSONObject estadoJuego de vuelta al cliente.
+                             *
+                             */
                             out.writeUTF(estadoJuego.toString());
                             break;
                         default:
